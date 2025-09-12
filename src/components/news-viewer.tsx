@@ -113,11 +113,11 @@ export default function NewsViewer() {
       const currentSlideIndex = api.selectedScrollSnap();
       const currentItem = news[currentSlideIndex];
       if (currentItem && autoplay.current) {
-        // Here we stop and then play, which re-initializes with the new options.
+        // Stop the autoplay plugin
         autoplay.current.stop();
+        // Re-initialize it with the new delay. This is more reliable than just changing the option.
         (autoplay.current.options as any).delay = currentItem.duration * 1000;
-        // A small timeout is needed to ensure the options are applied before playing.
-        setTimeout(() => autoplay.current.play(), 50);
+        autoplay.current.play();
       }
     };
   
