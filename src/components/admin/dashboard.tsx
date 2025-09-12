@@ -50,8 +50,6 @@ import {
   Eye,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
 
 export default function Dashboard({ initialNews }: { initialNews: NewsItem[] }) {
   const [news, setNews] = useState<NewsItem[]>(initialNews);
@@ -59,19 +57,10 @@ export default function Dashboard({ initialNews }: { initialNews: NewsItem[] }) 
   const [editingNews, setEditingNews] = useState<NewsItem | null>(null);
   const { toast } = useToast();
   const router = useRouter();
-
+  
   useEffect(() => {
-    const q = query(collection(db, "news"), orderBy("createdAt", "desc"));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const newsData: NewsItem[] = [];
-      querySnapshot.forEach((doc) => {
-        newsData.push({ id: doc.id, ...doc.data() } as NewsItem);
-      });
-      setNews(newsData);
-    });
-
-    return () => unsubscribe();
-  }, []);
+    setNews(initialNews);
+  }, [initialNews]);
 
   const handleEdit = (item: NewsItem) => {
     setEditingNews(item);
