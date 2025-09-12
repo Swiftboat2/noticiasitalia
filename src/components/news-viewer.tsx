@@ -80,7 +80,7 @@ export default function NewsViewer() {
 
   useEffect(() => {
     if (isOffline) {
-      console.log("App is offline. Loading from cache.");
+      console.log("La aplicación está desconectada. Cargando desde la caché.");
       const cachedNews = localStorage.getItem(CACHE_KEY);
       if (cachedNews) {
         setNews(JSON.parse(cachedNews));
@@ -89,7 +89,7 @@ export default function NewsViewer() {
       return;
     }
 
-    console.log("App is online. Fetching from Firestore.");
+    console.log("La aplicación está en línea. Obteniendo datos de Firestore.");
     const q = query(collection(db, "news"), where("active", "==", true), orderBy("createdAt", "desc"));
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -101,7 +101,7 @@ export default function NewsViewer() {
       localStorage.setItem(CACHE_KEY, JSON.stringify(newsData));
       setLoading(false);
     }, (error) => {
-      console.error("Error fetching news:", error);
+      console.error("Error al obtener noticias:", error);
       // Fallback to cache on error
       const cachedNews = localStorage.getItem(CACHE_KEY);
       if (cachedNews) {
@@ -141,7 +141,7 @@ export default function NewsViewer() {
         return (
           <Image
             src={item.url}
-            alt="News content"
+            alt="Contenido de la noticia"
             fill
             sizes="100vw"
             className="object-cover"
@@ -153,7 +153,7 @@ export default function NewsViewer() {
         return (
            <iframe
             src={getYouTubeEmbedUrl(item.url)}
-            title="News video"
+            title="Video de la noticia"
             className="w-full h-full"
             allow="autoplay; encrypted-media; picture-in-picture"
             allowFullScreen
@@ -164,13 +164,13 @@ export default function NewsViewer() {
          return (
           <iframe
             src={item.url}
-            title="News content"
+            title="Contenido de la noticia"
             className="w-full h-full bg-white"
             sandbox="allow-scripts allow-same-origin allow-forms"
           ></iframe>
         );
       default:
-        return <p className="text-white">Unsupported content type</p>;
+        return <p className="text-white">Tipo de contenido no soportado</p>;
     }
   };
 
@@ -181,7 +181,7 @@ export default function NewsViewer() {
            <Skeleton className="w-full h-full bg-gray-800" />
         ) : news.length === 0 ? (
           <div className="flex items-center justify-center h-full w-full bg-gray-900">
-            <p className="text-white text-2xl font-headline">No active news.</p>
+            <p className="text-white text-2xl font-headline">No hay noticias activas.</p>
           </div>
         ) : (
           <Carousel

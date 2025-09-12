@@ -34,9 +34,9 @@ interface NewsFormProps {
 }
 
 const formSchema = z.object({
-  url: z.string().min(1, { message: "URL cannot be empty." }),
-  type: z.enum(["image", "video", "text"], { required_error: "Please select a type." }),
-  duration: z.coerce.number().min(1, { message: "Duration must be at least 1 second." }),
+  url: z.string().min(1, { message: "La URL no puede estar vacía." }),
+  type: z.enum(["image", "video", "text"], { required_error: "Por favor, selecciona un tipo." }),
+  duration: z.coerce.number().min(1, { message: "La duración debe ser de al menos 1 segundo." }),
   active: z.boolean().default(true),
 });
 
@@ -79,7 +79,7 @@ export function NewsForm({ newsItem, onSubmit, onUpdate, onFinished }: NewsFormP
       // Update existing item
       const result = await onUpdate(newsItem.id, values);
       if (result.success) {
-        toast({ title: "Success", description: "News item updated." });
+        toast({ title: "Éxito", description: "Noticia actualizada." });
         onFinished();
       } else {
         toast({
@@ -98,13 +98,13 @@ export function NewsForm({ newsItem, onSubmit, onUpdate, onFinished }: NewsFormP
       
       const result = await onSubmit(formData);
       if (result.success) {
-        toast({ title: "Success", description: "News item created." });
+        toast({ title: "Éxito", description: "Noticia creada." });
         onFinished();
       } else {
          toast({
           variant: "destructive",
-          title: "Error Creating Item",
-          description: result.error || "An unknown error occurred.",
+          title: "Error al Crear Noticia",
+          description: result.error || "Ha ocurrido un error desconocido.",
         });
       }
     }
@@ -131,17 +131,17 @@ export function NewsForm({ newsItem, onSubmit, onUpdate, onFinished }: NewsFormP
           name="type"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Type</FormLabel>
+              <FormLabel>Tipo</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a content type" />
+                    <SelectValue placeholder="Selecciona un tipo de contenido" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="image">Image</SelectItem>
+                  <SelectItem value="image">Imagen</SelectItem>
                   <SelectItem value="video">Video</SelectItem>
-                  <SelectItem value="text">Text/Website</SelectItem>
+                  <SelectItem value="text">Texto/Sitio Web</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -163,7 +163,7 @@ export function NewsForm({ newsItem, onSubmit, onUpdate, onFinished }: NewsFormP
           name="duration"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Duration (seconds)</FormLabel>
+              <FormLabel>Duración (segundos)</FormLabel>
               <FormControl>
                 <Input type="number" {...field} />
               </FormControl>
@@ -177,7 +177,7 @@ export function NewsForm({ newsItem, onSubmit, onUpdate, onFinished }: NewsFormP
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background">
               <div className="space-y-0.5">
-                <FormLabel>Active</FormLabel>
+                <FormLabel>Activa</FormLabel>
               </div>
               <FormControl>
                 <Switch
@@ -189,7 +189,7 @@ export function NewsForm({ newsItem, onSubmit, onUpdate, onFinished }: NewsFormP
           )}
         />
         <Button type="submit" disabled={form.formState.isSubmitting} className="w-full">
-            {form.formState.isSubmitting ? "Saving..." : "Save Changes"}
+            {form.formState.isSubmitting ? "Guardando..." : "Guardar Cambios"}
         </Button>
       </form>
     </Form>

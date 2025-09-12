@@ -21,8 +21,8 @@ import { LogIn } from "lucide-react";
 import { useState } from "react";
 
 const formSchema = z.object({
-  username: z.string().min(1, { message: "Username is required." }),
-  password: z.string().min(1, { message: "Password is required." }),
+  username: z.string().min(1, { message: "El nombre de usuario es obligatorio." }),
+  password: z.string().min(1, { message: "La contraseña es obligatoria." }),
 });
 
 export function LoginForm() {
@@ -45,15 +45,15 @@ export function LoginForm() {
     if (values.username === 'colegioadmin' && values.password === 'cole1046') {
       localStorage.setItem('isAuthenticated', 'true');
       toast({
-        title: "Success",
-        description: "Logged in successfully.",
+        title: "Éxito",
+        description: "Has iniciado sesión correctamente.",
       });
       router.push("/admin/dashboard");
     } else {
       toast({
         variant: "destructive",
-        title: "Login Failed",
-        description: "Invalid credentials. Please try again.",
+        title: "Inicio de Sesión Fallido",
+        description: "Credenciales inválidas. Por favor, inténtalo de nuevo.",
       });
     }
     setIsSubmitting(false);
@@ -63,10 +63,10 @@ export function LoginForm() {
     <Card className="w-full max-w-sm">
       <CardHeader>
         <CardTitle className="text-2xl font-headline flex items-center gap-2">
-            <LogIn /> Admin Login
+            <LogIn /> Iniciar Sesión de Administrador
         </CardTitle>
         <CardDescription>
-            Enter your credentials to access the dashboard.
+            Introduce tus credenciales para acceder al panel.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -77,7 +77,7 @@ export function LoginForm() {
               name="username"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Username</FormLabel>
+                  <FormLabel>Usuario</FormLabel>
                   <FormControl>
                     <Input placeholder="colegioadmin" {...field} />
                   </FormControl>
@@ -90,7 +90,7 @@ export function LoginForm() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel>Contraseña</FormLabel>
                   <FormControl>
                     <Input type="password" placeholder="••••••••" {...field} />
                   </FormControl>
@@ -99,7 +99,7 @@ export function LoginForm() {
               )}
             />
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Logging in..." : "Login"}
+              {isSubmitting ? "Iniciando sesión..." : "Iniciar Sesión"}
             </Button>
           </form>
         </Form>

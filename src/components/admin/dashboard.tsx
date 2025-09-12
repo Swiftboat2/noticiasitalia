@@ -40,6 +40,7 @@ import {
 import { NewsForm } from "./news-form";
 import type { NewsItem } from "@/types";
 import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import {
   PlusCircle,
   Edit,
@@ -80,7 +81,7 @@ export default function Dashboard({ initialNews }: { initialNews: NewsItem[] }) 
   const handleDelete = async (id: string) => {
     const result = await deleteNewsItem(id);
     if (result.success) {
-      toast({ title: "Success", description: "News item deleted." });
+      toast({ title: "Éxito", description: "Noticia eliminada." });
     } else {
       toast({
         variant: "destructive",
@@ -94,8 +95,8 @@ export default function Dashboard({ initialNews }: { initialNews: NewsItem[] }) 
     const result = await updateNewsItem(item.id, { active: !item.active });
     if (result.success) {
       toast({
-        title: "Success",
-        description: `News item ${!item.active ? "activated" : "deactivated"}.`,
+        title: "Éxito",
+        description: `Noticia ${!item.active ? "activada" : "desactivada"}.`,
       });
     } else {
       toast({
@@ -116,14 +117,14 @@ export default function Dashboard({ initialNews }: { initialNews: NewsItem[] }) 
       <header className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-3">
           <Newspaper className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-headline">News Dashboard</h1>
+          <h1 className="text-3xl font-headline">Panel de Noticias</h1>
         </div>
         <div className="flex items-center gap-4">
           <Button variant="outline" onClick={() => router.push('/')}>
-            <Eye className="mr-2 h-4 w-4" /> View Site
+            <Eye className="mr-2 h-4 w-4" /> Ver Sitio
           </Button>
           <Button variant="destructive" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" /> Logout
+            <LogOut className="mr-2 h-4 w-4" /> Salir
           </Button>
         </div>
       </header>
@@ -138,18 +139,18 @@ export default function Dashboard({ initialNews }: { initialNews: NewsItem[] }) 
         >
           <DialogTrigger asChild>
             <Button>
-              <PlusCircle className="mr-2 h-4 w-4" /> Add News
+              <PlusCircle className="mr-2 h-4 w-4" /> Añadir Noticia
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>
-                {editingNews ? "Edit News Item" : "Add News Item"}
+                {editingNews ? "Editar Noticia" : "Añadir Noticia"}
               </DialogTitle>
               <DialogDescription>
                 {editingNews
-                  ? "Update the details of the news item."
-                  : "Fill in the form to add a new news item."}
+                  ? "Actualiza los detalles de la noticia."
+                  : "Rellena el formulario para añadir una nueva noticia."}
               </DialogDescription>
             </DialogHeader>
             <NewsForm
@@ -170,11 +171,11 @@ export default function Dashboard({ initialNews }: { initialNews: NewsItem[] }) 
           <TableHeader>
             <TableRow>
               <TableHead>URL</TableHead>
-              <TableHead className="w-[100px]">Type</TableHead>
-              <TableHead className="w-[120px]">Created At</TableHead>
-              <TableHead className="w-[100px]">Duration</TableHead>
-              <TableHead className="w-[80px]">Active</TableHead>
-              <TableHead className="text-right w-[150px]">Actions</TableHead>
+              <TableHead className="w-[100px]">Tipo</TableHead>
+              <TableHead className="w-[120px]">Fecha de Creación</TableHead>
+              <TableHead className="w-[100px]">Duración</TableHead>
+              <TableHead className="w-[80px]">Activa</TableHead>
+              <TableHead className="text-right w-[150px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -191,7 +192,7 @@ export default function Dashboard({ initialNews }: { initialNews: NewsItem[] }) 
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  {item.createdAt?.toDate ? format(item.createdAt.toDate(), "PPpp") : '...'}
+                  {item.createdAt?.toDate ? format(item.createdAt.toDate(), "PPpp", { locale: es }) : '...'}
                 </TableCell>
                 <TableCell>{item.duration}s</TableCell>
                 <TableCell>
@@ -217,16 +218,16 @@ export default function Dashboard({ initialNews }: { initialNews: NewsItem[] }) 
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          This action cannot be undone. This will permanently
-                          delete the news item.
+                          Esta acción no se puede deshacer. Esto eliminará
+                          permanentemente la noticia.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction onClick={() => handleDelete(item.id)}>
-                          Delete
+                          Eliminar
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
@@ -239,7 +240,7 @@ export default function Dashboard({ initialNews }: { initialNews: NewsItem[] }) 
       </div>
        {news.length === 0 && (
           <div className="text-center p-10 text-muted-foreground">
-              No news items found.
+              No se encontraron noticias.
           </div>
         )}
     </div>
