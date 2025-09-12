@@ -48,10 +48,9 @@ import {
   Newspaper,
   Eye,
 } from "lucide-react";
-import { signOut } from "firebase/auth";
-import { auth, db } from "@/lib/firebase/config";
 import { useRouter } from "next/navigation";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
 
 export default function Dashboard({ initialNews }: { initialNews: NewsItem[] }) {
   const [news, setNews] = useState<NewsItem[]>(initialNews);
@@ -108,7 +107,7 @@ export default function Dashboard({ initialNews }: { initialNews: NewsItem[] }) 
   };
 
   const handleLogout = async () => {
-    await signOut(auth);
+    localStorage.removeItem('isAuthenticated');
     router.push("/admin/login");
   };
 
