@@ -103,7 +103,7 @@ export function AIImageAdjuster({ imageUrl, onImageAdjusted }: AIImageAdjusterPr
             </div>
         </div>
       </div>
-       <Button onClick={handleAdjust} disabled={isAdjusting || isFetchingPreview || !!fetchError} className="w-full" variant="secondary">
+       <Button onClick={handleAdjust} disabled={isAdjusting || isFetchingPreview || !!fetchError || !originalUrlData} className="w-full" variant="secondary">
         {isAdjusting ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
