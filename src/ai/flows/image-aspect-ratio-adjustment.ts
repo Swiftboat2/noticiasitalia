@@ -30,24 +30,6 @@ export async function adjustImageAspectRatio(input: AdjustImageAspectRatioInput)
   return adjustImageAspectRatioFlow(input);
 }
 
-const adjustImageAspectRatioPrompt = ai.definePrompt({
-  name: 'adjustImageAspectRatioPrompt',
-  input: {schema: AdjustImageAspectRatioInputSchema},
-  output: {schema: AdjustImageAspectRatioOutputSchema},
-  prompt: [
-    {
-      media: {url: '{{imageUri}}'},
-    },
-    {
-      text: `Adjust the image to fit a 9:16 aspect ratio without distortion, adding black bars if necessary. Return the adjusted image as a data URI.`, 
-    },
-  ],
-  model: 'googleai/gemini-2.5-flash-image-preview',
-  config: {
-    responseModalities: ['TEXT', 'IMAGE'],
-  },
-});
-
 const adjustImageAspectRatioFlow = ai.defineFlow(
   {
     name: 'adjustImageAspectRatioFlow',
@@ -58,9 +40,9 @@ const adjustImageAspectRatioFlow = ai.defineFlow(
     // Extract content type and base64 data from the data URI
     const match = input.imageUri.match(/^data:(image\/\w+);base64,(.+)$/);
     if (!match) {
-        throw new Error("Formato de URI de datos de imagen no válido.");
+        throw new Error("Invalid image data URI format.");
     }
-    const [, contentType, data] = match;
+    const [, contentType] = match;
 
     const {media} = await ai.generate({
         model: 'googleai/gemini-2.5-flash-image-preview',
@@ -72,7 +54,7 @@ const adjustImageAspectRatioFlow = ai.defineFlow(
                 }
             },
             {
-                text: 'Ajusta la imagen para que se ajuste a una relación de aspecto de 9:16 sin distorsión, añadiendo barras negras si es necesario. Devuelve la imagen ajustada como un URI de datos.'
+                text: 'Adjust the image to fit a 9:16 aspect ratio without distortion, adding black bars if necessary. Return the adjusted image as a data URI.'
             }
         ],
         config: {
@@ -81,7 +63,7 @@ const adjustImageAspectRatioFlow = ai.defineFlow(
     });
 
     if (!media?.url) {
-      throw new Error("La API no devolvió una imagen ajustada.");
+      throw new Error("The API did not return an adjusted image.");
     }
     
     return {adjustedImageUri: media.url};
