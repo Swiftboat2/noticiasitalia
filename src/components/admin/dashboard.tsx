@@ -33,7 +33,6 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import {
-  addNewsItem,
   deleteNewsItem,
   updateNewsItem,
   deleteTickerMessage,
@@ -41,7 +40,7 @@ import {
 import { NewsForm } from "./news-form";
 import { TickerForm } from "./ticker-form";
 import type { NewsItem, TickerMessage } from "@/types";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   PlusCircle,
@@ -62,6 +61,22 @@ interface DashboardProps {
   initialTickerMessages: TickerMessage[];
 }
 
+// Helper to serialize Firestore Timestamps for client-side updates
+const serializeData = (doc: any) => {
+  const data = doc.data();
+  const id = doc.id;
+  const serializedData: { [key: string]: any } = { id };
+  for (const key in data) {
+    if (data[key] && typeof data[key].toDate === 'function') {
+      serializedData[key] = data[key].toDate().toISOString();
+    } else {
+      serializedData[key] = data[key];
+    }
+  }
+  return serializedData;
+};
+
+
 export default function Dashboard({ initialNews, initialTickerMessages }: DashboardProps) {
   const [news, setNews] = useState<NewsItem[]>(initialNews);
   const [tickerMessages, setTickerMessages] = useState<TickerMessage[]>(initialTickerMessages);
@@ -78,7 +93,7 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
   useEffect(() => {
     const newsQuery = query(collection(db, "news"), orderBy("createdAt", "desc"));
     const newsUnsubscribe = onSnapshot(newsQuery, (snapshot) => {
-      const newsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as NewsItem));
+      const newsData = snapshot.docs.map(serializeData) as NewsItem[];
       setNews(newsData);
     }, (error) => {
       console.error("Error al obtener noticias en tiempo real:", error);
@@ -87,7 +102,7 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
 
     const tickerQuery = query(collection(db, "tickerMessages"), orderBy("createdAt", "desc"));
     const tickerUnsubscribe = onSnapshot(tickerQuery, (snapshot) => {
-      const tickerData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TickerMessage));
+      const tickerData = snapshot.docs.map(serializeData) as TickerMessage[];
       setTickerMessages(tickerData);
     }, (error) => {
       console.error("Error al obtener mensajes del ticker en tiempo real:", error);
@@ -132,6 +147,14 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
     localStorage.removeItem('isAuthenticated');
     router.push("/admin/login");
   };
+
+  const formatDate = (dateString: string) => {
+    try {
+        return format(parseISO(dateString), "PPpp", { locale: es });
+    } catch (e) {
+        return 'Fecha inválida';
+    }
+  }
 
   return (
     <div className="container mx-auto py-10 space-y-12">
@@ -197,9 +220,9 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
                 <TableRow key={item.id}>
                   <TableCell className="font-medium max-w-xs truncate"><a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:underline text-primary">{item.url}</a></TableCell>
                   <TableCell><Badge variant={item.type === 'image' ? 'default' : item.type === 'video' ? 'secondary' : 'outline'}>{item.type}</Badge></TableCell>
-                  <TableCell>{item.createdAt?.toDate ? format(item.createdAt.toDate(), "PPpp", { locale: es }) : '...'}</TableCell>
+                  <TableCell>{formatDate(item.createdAt)}</TableCell>
                   <TableCell>{item.duration}s</TableCell>
-                  <TableCell><Switch checked={item.active} onCheckedChange={() => updateNewsItem(item.id, { active: !item.active })}/></TableCell>
+                  <TableCell><Switch checked={item.active} onCheckedChange={async () => await updateNewsItem(item.id, { active: !item.active })}/></TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => handleEditNews(item)}><Edit className="h-4 w-4" /></Button>
                     <AlertDialog>
@@ -265,7 +288,7 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
               {tickerMessages.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.text}</TableCell>
-                  <TableCell>{item.createdAt?.toDate ? format(item.createdAt.toDate(), "PPpp", { locale: es }) : '...'}</TableCell>
+                  <TableCell>{formatDate(item.createdAt)}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => handleEditTicker(item)}><Edit className="h-4 w-4" /></Button>
                     <AlertDialog>
@@ -292,5 +315,3 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
     </div>
   );
 }
-
-    
