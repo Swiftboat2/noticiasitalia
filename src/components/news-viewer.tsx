@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
 import Image from 'next/image';
 import { db } from '@/lib/firebase/config';
 import type { NewsItem, TickerMessage } from '@/types';
@@ -61,7 +61,6 @@ const getYouTubeEmbedUrl = (url: string) => {
 export default function NewsViewer() {
   const [api, setApi] = useState<CarouselApi>();
   const [news, setNews] = useState<NewsItem[]>([]);
-  const [tickerMessages, setTickerMessages] = useState<TickerMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
   const autoplay = useRef(
@@ -83,23 +82,20 @@ export default function NewsViewer() {
     if (isOffline) {
       console.log("La aplicación está desconectada. Cargando desde la caché.");
       const cachedNews = localStorage.getItem(NEWS_CACHE_KEY);
-      const cachedTicker = localStorage.getItem(TICKER_CACHE_KEY);
       if (cachedNews) setNews(JSON.parse(cachedNews));
-      if (cachedTicker) setTickerMessages(JSON.parse(cachedTicker));
       setLoading(false);
       return;
     }
 
     console.log("La aplicación está en línea. Obteniendo datos de Firestore.");
     
-    // News subscription
     const newsQuery = query(collection(db, "news"), orderBy("createdAt", "desc"));
     const newsUnsubscribe = onSnapshot(newsQuery, (snapshot) => {
-      const newsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as NewsItem);
-      const activeNews = newsData.filter(item => item.active);
-      setNews(activeNews);
-      localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(activeNews));
-      setLoading(false); // Set loading to false after first data fetch
+      const newsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as NewsItem)
+                                    .filter(item => item.active);
+      setNews(newsData);
+      localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(newsData));
+      setLoading(false);
     }, (error) => {
       console.error("Error al obtener noticias:", error);
       const cachedNews = localStorage.getItem(NEWS_CACHE_KEY);
@@ -107,21 +103,8 @@ export default function NewsViewer() {
       setLoading(false);
     });
 
-    // Ticker subscription
-    const tickerQuery = query(collection(db, "tickerMessages"), orderBy("createdAt", "desc"));
-    const tickerUnsubscribe = onSnapshot(tickerQuery, (snapshot) => {
-      const tickerData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as TickerMessage);
-      setTickerMessages(tickerData);
-      localStorage.setItem(TICKER_CACHE_KEY, JSON.stringify(tickerData));
-    }, (error) => {
-      console.error("Error al obtener mensajes del ticker:", error);
-      const cachedTicker = localStorage.getItem(TICKER_CACHE_KEY);
-      if (cachedTicker) setTickerMessages(JSON.parse(cachedTicker));
-    });
-
     return () => {
       newsUnsubscribe();
-      tickerUnsubscribe();
     };
   }, [isOffline]);
 
@@ -183,7 +166,7 @@ export default function NewsViewer() {
             </CarouselContent>
           </Carousel>
         )}
-         <NewsTicker items={tickerMessages} />
+         <NewsTicker />
       </div>
     </div>
   );

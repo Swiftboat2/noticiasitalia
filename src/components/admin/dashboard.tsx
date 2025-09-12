@@ -250,7 +250,7 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
       {/* Ticker Section */}
       <section>
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-headline flex items-center gap-2"><MessageSquare className="h-6 w-6"/>Gestor del Ticker de Noticias</h2>
+          <h2 className="text-2xl font-headline flex items-center gap-2"><MessageSquare className="h-6 w-6"/>Gestor del Ticker de Noticias Urgentes</h2>
           <Dialog
             open={isTickerFormOpen}
             onOpenChange={(isOpen) => {
@@ -260,13 +260,13 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
           >
             <DialogTrigger asChild>
               <Button variant="secondary">
-                <PlusCircle className="mr-2 h-4 w-4" /> Añadir Mensaje al Ticker
+                <PlusCircle className="mr-2 h-4 w-4" /> Añadir Mensaje Urgente
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>{editingTicker ? "Editar Mensaje" : "Añadir Mensaje"}</DialogTitle>
-                <DialogDescription>{editingTicker ? "Actualiza el texto del mensaje." : "Añade un nuevo mensaje a la cinta de noticias."}</DialogDescription>
+                <DialogTitle>{editingTicker ? "Editar Mensaje" : "Añadir Mensaje Urgente"}</DialogTitle>
+                <DialogDescription>{editingTicker ? "Actualiza el texto del mensaje." : "Añade un nuevo mensaje a la cinta de noticias urgentes."}</DialogDescription>
               </DialogHeader>
               <TickerForm
                 tickerMessage={editingTicker}
