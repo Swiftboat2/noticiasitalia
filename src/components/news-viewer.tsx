@@ -50,7 +50,6 @@ const getYouTubeEmbedUrl = (url: string) => {
         return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
     }
     
-    // Fallback for non-youtube video URLs or if parsing fails
     return url; 
 };
 
@@ -63,7 +62,6 @@ export default function NewsViewer() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // This check is important to avoid SSR errors
     if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
         const handleOnlineStatus = () => setIsOffline(!navigator.onLine);
         window.addEventListener('online', handleOnlineStatus);
@@ -78,15 +76,12 @@ export default function NewsViewer() {
 
   useEffect(() => {
     if (isOffline) {
-      console.log("La aplicación está desconectada. Cargando desde la caché.");
       const cachedNews = localStorage.getItem(NEWS_CACHE_KEY);
       if (cachedNews) setNews(JSON.parse(cachedNews));
       setLoading(false);
       return;
     }
 
-    console.log("La aplicación está en línea. Obteniendo datos de Firestore.");
-    
     const newsQuery = query(collection(db, "news"), orderBy("createdAt", "desc"));
     const newsUnsubscribe = onSnapshot(newsQuery, (snapshot) => {
       const newsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as NewsItem)
@@ -106,7 +101,6 @@ export default function NewsViewer() {
     };
   }, [isOffline]);
 
-  // Función para limpiar el timer existente
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -114,91 +108,73 @@ export default function NewsViewer() {
     }
   }, []);
 
-  // Función para iniciar un nuevo timer
   const startTimer = useCallback(() => {
     if (!api || news.length === 0) return;
 
-    clearTimer(); // Limpiar timer existente
+    clearTimer();
 
     const selectedIndex = api.selectedScrollSnap();
     const currentItem = news[selectedIndex];
     
     if (!currentItem) return;
     
-    // Obtener duración de la configuración del item, con fallback a 10 segundos
-    let duration = 10; // valor por defecto
+    let duration = (currentItem.duration && currentItem.duration > 0) ? currentItem.duration : 10;
     
-    if (currentItem.duration && typeof currentItem.duration === 'number' && currentItem.duration > 0) {
-      duration = currentItem.duration;
+    // For videos, the duration is handled by the video itself.
+    // Let's set a very long timer, and the onSelect event will handle the transition
+    // when a video ends (or if it's manually changed).
+    // Note: YouTube loop=1 will handle replay, but let's keep timer logic consistent
+    if (currentItem.type === 'video') {
+       // We let the video play. The timer is just a fallback.
     }
-    
-    console.log(`Timer iniciado para slide ${selectedIndex} con duración: ${duration} segundos`);
 
     timerRef.current = setTimeout(() => {
-      if (api) {
-        api.scrollNext();
-      }
+      api.scrollNext();
     }, duration * 1000);
   }, [api, news, clearTimer]);
 
-  // Logic for custom autoplay
   useEffect(() => {
-    if (!api || news.length === 0) return;
+    if (!api) return;
 
-    // Iniciar el primer timer
-    startTimer();
-    
-    // Event listener para cuando se selecciona un slide
     const onSelect = () => {
       const newIndex = api.selectedScrollSnap();
-      console.log(`Slide cambiado a: ${newIndex}`);
       setCurrentSlide(newIndex);
-      startTimer(); // Iniciar nuevo timer para el nuevo slide
+      startTimer();
     };
 
-    // Event listener para detener el timer en interacción del usuario
     const onPointerDown = () => {
-      console.log('Usuario interactuó - deteniendo timer');
       clearTimer();
     };
-
-    // Event listener para reanudar el timer después de la interacción
+    
     const onPointerUp = () => {
-      console.log('Usuario terminó interacción - reanudando timer');
-      // Pequeño delay para permitir que la transición termine
-      setTimeout(() => {
+       setTimeout(() => {
         startTimer();
       }, 100);
-    };
+    }
 
     api.on("select", onSelect);
     api.on("pointerDown", onPointerDown);
     api.on("pointerUp", onPointerUp);
+    
+    startTimer(); // Initial start
 
-    // Cleanup
     return () => {
       clearTimer();
-      if (api) {
-        api.off("select", onSelect);
-        api.off("pointerDown", onPointerDown);
-        api.off("pointerUp", onPointerUp);
-      }
+      api.off("select", onSelect);
+      api.off("pointerDown", onPointerDown);
+      api.off("pointerUp", onPointerUp);
     };
   }, [api, news, startTimer, clearTimer]);
-
-  // Cleanup al desmontar el componente
-  useEffect(() => {
-    return () => {
-      clearTimer();
-    };
-  }, [clearTimer]);
   
-  const renderContent = (item: NewsItem) => {
+  const renderContent = (item: NewsItem, index: number) => {
+    const isActive = index === currentSlide;
+
     switch (item.type) {
       case 'image':
         return <Image src={item.url} alt="Contenido de la noticia" fill sizes="100vw" className="object-cover" priority quality={100}/>;
       case 'video':
-        return <iframe src={getYouTubeEmbedUrl(item.url)} title="Video de la noticia" className="w-full h-full" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen sandbox="allow-scripts allow-same-origin allow-forms"></iframe>;
+        // Only render the iframe if the slide is active to prevent background playback
+        return isActive ? <iframe src={getYouTubeEmbedUrl(item.url)} title="Video de la noticia" className="w-full h-full" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen sandbox="allow-scripts allow-same-origin allow-forms"></iframe> : null;
       case 'text':
          return <iframe src={item.url} title="Contenido de la noticia" className="w-full h-full bg-white" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>;
       default:
@@ -218,11 +194,11 @@ export default function NewsViewer() {
         ) : (
           <Carousel className="w-full h-full" setApi={setApi} opts={{ loop: true }}>
             <CarouselContent className="h-full">
-              {news.map((item) => (
+              {news.map((item, index) => (
                 <CarouselItem key={item.id} className="h-full">
                   <Card className="w-full h-full border-0 bg-black rounded-none">
                     <CardContent className="relative flex aspect-9/16 h-full items-center justify-center p-0">
-                      {renderContent(item)}
+                      {renderContent(item, index)}
                     </CardContent>
                   </Card>
                 </CarouselItem>
