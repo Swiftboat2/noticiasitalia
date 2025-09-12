@@ -55,7 +55,35 @@ const adjustImageAspectRatioFlow = ai.defineFlow(
     outputSchema: AdjustImageAspectRatioOutputSchema,
   },
   async input => {
-    const {media} = await adjustImageAspectRatioPrompt(input);
-    return {adjustedImageUri: media!.url!};
+    // Extract content type and base64 data from the data URI
+    const match = input.imageUri.match(/^data:(image\/\w+);base64,(.+)$/);
+    if (!match) {
+        throw new Error("Formato de URI de datos de imagen no válido.");
+    }
+    const [, contentType, data] = match;
+
+    const {media} = await ai.generate({
+        model: 'googleai/gemini-2.5-flash-image-preview',
+        prompt: [
+            {
+                media: {
+                    contentType: contentType,
+                    url: input.imageUri
+                }
+            },
+            {
+                text: 'Ajusta la imagen para que se ajuste a una relación de aspecto de 9:16 sin distorsión, añadiendo barras negras si es necesario. Devuelve la imagen ajustada como un URI de datos.'
+            }
+        ],
+        config: {
+            responseModalities: ['TEXT', 'IMAGE']
+        }
+    });
+
+    if (!media?.url) {
+      throw new Error("La API no devolvió una imagen ajustada.");
+    }
+    
+    return {adjustedImageUri: media.url};
   }
 );
