@@ -38,6 +38,7 @@ export function NewsTicker() {
       <div className="ticker-container py-2">
         <div className="ticker-content">
           <span className="ticker-item">{tickerContent}</span>
+          <span className="ticker-item">{tickerContent}</span>
         </div>
       </div>
       
@@ -49,7 +50,7 @@ export function NewsTicker() {
         
         .ticker-content {
           display: flex;
-          animation: scroll-left 30s linear infinite;
+          animation: scroll-left 20s linear infinite;
         }
         
         .ticker-item {
@@ -59,7 +60,7 @@ export function NewsTicker() {
         
         @keyframes scroll-left {
           0% {
-            transform: translate3d(100%, 0, 0);
+            transform: translate3d(0, 0, 0);
           }
           100% {
             transform: translate3d(-100%, 0, 0);
