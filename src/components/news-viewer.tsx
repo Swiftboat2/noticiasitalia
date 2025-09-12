@@ -54,23 +54,26 @@ const getYouTubeEmbedUrl = (url: string) => {
     return url; 
 };
 
-
 export default function NewsViewer() {
   const [api, setApi] = useState<CarouselApi>();
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const handleOnlineStatus = () => setIsOffline(!navigator.onLine);
-    window.addEventListener('online', handleOnlineStatus);
-    window.addEventListener('offline', handleOnlineStatus);
-    handleOnlineStatus();
-    return () => {
-      window.removeEventListener('online', handleOnlineStatus);
-      window.removeEventListener('offline', handleOnlineStatus);
-    };
+    // This check is important to avoid SSR errors
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+        const handleOnlineStatus = () => setIsOffline(!navigator.onLine);
+        window.addEventListener('online', handleOnlineStatus);
+        window.addEventListener('offline', handleOnlineStatus);
+        handleOnlineStatus();
+        return () => {
+          window.removeEventListener('online', handleOnlineStatus);
+          window.removeEventListener('offline', handleOnlineStatus);
+        };
+    }
   }, []);
 
   useEffect(() => {
@@ -103,49 +106,92 @@ export default function NewsViewer() {
     };
   }, [isOffline]);
 
+  // Función para limpiar el timer existente
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  // Función para iniciar un nuevo timer
+  const startTimer = useCallback(() => {
+    if (!api || news.length === 0) return;
+
+    clearTimer(); // Limpiar timer existente
+
+    const selectedIndex = api.selectedScrollSnap();
+    const currentItem = news[selectedIndex];
+    
+    if (!currentItem) return;
+    
+    // Obtener duración de la configuración del item, con fallback a 10 segundos
+    let duration = 10; // valor por defecto
+    
+    if (currentItem.duration && typeof currentItem.duration === 'number' && currentItem.duration > 0) {
+      duration = currentItem.duration;
+    }
+    
+    console.log(`Timer iniciado para slide ${selectedIndex} con duración: ${duration} segundos`);
+
+    timerRef.current = setTimeout(() => {
+      if (api) {
+        api.scrollNext();
+      }
+    }, duration * 1000);
+  }, [api, news, clearTimer]);
+
   // Logic for custom autoplay
   useEffect(() => {
     if (!api || news.length === 0) return;
 
-    // Clear previous timer
-    let timer: NodeJS.Timeout;
-
-    // Function to start the timer for the next slide
-    const startTimer = () => {
-      const selectedIndex = api.selectedScrollSnap();
-      const currentItem = news[selectedIndex];
-      
-      if (!currentItem) return;
-      
-      // Get duration, default to 10 seconds if not set
-      const duration = (currentItem.duration || 10) * 1000;
-
-      timer = setTimeout(() => {
-        api.scrollNext();
-      }, duration);
-    };
-
-    // Start the first timer
+    // Iniciar el primer timer
     startTimer();
     
-    // Set up event listener for when a slide is selected
+    // Event listener para cuando se selecciona un slide
     const onSelect = () => {
-      clearTimeout(timer); // Clear old timer
-      startTimer(); // Start a new timer for the new slide
-      setCurrentSlide(api.selectedScrollSnap());
+      const newIndex = api.selectedScrollSnap();
+      console.log(`Slide cambiado a: ${newIndex}`);
+      setCurrentSlide(newIndex);
+      startTimer(); // Iniciar nuevo timer para el nuevo slide
+    };
+
+    // Event listener para detener el timer en interacción del usuario
+    const onPointerDown = () => {
+      console.log('Usuario interactuó - deteniendo timer');
+      clearTimer();
+    };
+
+    // Event listener para reanudar el timer después de la interacción
+    const onPointerUp = () => {
+      console.log('Usuario terminó interacción - reanudando timer');
+      // Pequeño delay para permitir que la transición termine
+      setTimeout(() => {
+        startTimer();
+      }, 100);
     };
 
     api.on("select", onSelect);
-    api.on("pointerDown", () => clearTimeout(timer)); // Stop timer on user interaction
+    api.on("pointerDown", onPointerDown);
+    api.on("pointerUp", onPointerUp);
 
     // Cleanup
     return () => {
-      clearTimeout(timer);
+      clearTimer();
       if (api) {
         api.off("select", onSelect);
+        api.off("pointerDown", onPointerDown);
+        api.off("pointerUp", onPointerUp);
       }
     };
-  }, [api, news]);
+  }, [api, news, startTimer, clearTimer]);
+
+  // Cleanup al desmontar el componente
+  useEffect(() => {
+    return () => {
+      clearTimer();
+    };
+  }, [clearTimer]);
   
   const renderContent = (item: NewsItem) => {
     switch (item.type) {
@@ -184,7 +230,7 @@ export default function NewsViewer() {
             </CarouselContent>
           </Carousel>
         )}
-         <NewsTicker />
+        <NewsTicker />
       </div>
     </div>
   );
