@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import Image from 'next/image';
 import { db } from '@/lib/firebase/config';
 import type { NewsItem } from '@/types';
@@ -90,15 +90,17 @@ export default function NewsViewer() {
     }
 
     console.log("La aplicación está en línea. Obteniendo datos de Firestore.");
-    const q = query(collection(db, "news"), where("active", "==", true), orderBy("createdAt", "desc"));
+    const q = query(collection(db, "news"), orderBy("createdAt", "desc"));
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const newsData: NewsItem[] = [];
       querySnapshot.forEach((doc) => {
         newsData.push({ id: doc.id, ...doc.data() } as NewsItem);
       });
-      setNews(newsData);
-      localStorage.setItem(CACHE_KEY, JSON.stringify(newsData));
+      // Filter for active news client-side to avoid composite index requirement
+      const activeNews = newsData.filter(item => item.active);
+      setNews(activeNews);
+      localStorage.setItem(CACHE_KEY, JSON.stringify(activeNews));
       setLoading(false);
     }, (error) => {
       console.error("Error al obtener noticias:", error);
