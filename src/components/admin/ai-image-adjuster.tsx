@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Wand2, Loader2, AlertTriangle } from 'lucide-react';
+import { Wand2, Loader2, AlertTriangle, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { adjustImageAspectRatio } from '@/ai/flows/image-aspect-ratio-adjustment';
@@ -14,20 +14,49 @@ interface AIImageAdjusterProps {
 }
 
 export function AIImageAdjuster({ imageUrl, onImageAdjusted }: AIImageAdjusterProps) {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isAdjusting, setIsAdjusting] = useState(false);
+  const [isFetchingPreview, setIsFetchingPreview] = useState(false);
+  const [originalUrlData, setOriginalUrlData] = useState<string | null>(null);
   const [adjustedUrl, setAdjustedUrl] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  useEffect(() => {
+    setAdjustedUrl(null);
+    setOriginalUrlData(null);
+    setFetchError(null);
+    
+    if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('https'))) {
+        const fetchPreview = async () => {
+            setIsFetchingPreview(true);
+            const result = await fetchImageAsDataUrl(imageUrl);
+            if (result.success && result.dataUrl) {
+                setOriginalUrlData(result.dataUrl);
+            } else {
+                setFetchError(result.error || "No se pudo cargar la vista previa.");
+            }
+            setIsFetchingPreview(false);
+        };
+        fetchPreview();
+    } else if (imageUrl.startsWith('data:image')) {
+        // It's already a data URL
+        setOriginalUrlData(imageUrl);
+    }
+  }, [imageUrl]);
+
   const handleAdjust = async () => {
-    setIsLoading(true);
+    if (!originalUrlData) {
+        toast({
+            variant: 'destructive',
+            title: 'No hay imagen para ajustar',
+            description: 'La URL de la imagen original no se pudo cargar. Comprueba la URL e inténtalo de nuevo.',
+        });
+        return;
+    }
+    setIsAdjusting(true);
     setAdjustedUrl(null);
     try {
-      const fetchResult = await fetchImageAsDataUrl(imageUrl);
-      if (!fetchResult.success || !fetchResult.dataUrl) {
-        throw new Error(fetchResult.error || 'No se pudo obtener la imagen desde la URL.');
-      }
-      
-      const result = await adjustImageAspectRatio({ imageUri: fetchResult.dataUrl });
+      const result = await adjustImageAspectRatio({ imageUri: originalUrlData });
       
       if (result.adjustedImageUri) {
         setAdjustedUrl(result.adjustedImageUri);
@@ -48,14 +77,9 @@ export function AIImageAdjuster({ imageUrl, onImageAdjusted }: AIImageAdjusterPr
         description: error.message || 'No se pudo ajustar la imagen. Comprueba la URL e inténtalo de nuevo.',
       });
     } finally {
-      setIsLoading(false);
+      setIsAdjusting(false);
     }
   };
-  
-  // Reset when the source URL changes
-  useEffect(() => {
-    setAdjustedUrl(null);
-  }, [imageUrl]);
 
   return (
     <div className="space-y-4 rounded-lg border p-4 bg-muted/30">
@@ -64,20 +88,23 @@ export function AIImageAdjuster({ imageUrl, onImageAdjusted }: AIImageAdjusterPr
         <div className="space-y-2">
            <p className="text-xs font-medium text-center text-muted-foreground">Original</p>
            <div className="relative aspect-[9/16] w-full bg-muted/50 overflow-hidden rounded-md border">
-              <Image src={imageUrl} alt="Original" fill style={{ objectFit: 'contain' }} />
+              {isFetchingPreview && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="animate-spin h-6 w-6 text-primary" /></div>}
+              {!isFetchingPreview && fetchError && <div className="absolute inset-0 flex flex-col items-center justify-center text-xs text-destructive p-2 text-center"><AlertTriangle className="h-6 w-6 mb-1" /><p>{fetchError}</p></div>}
+              {!isFetchingPreview && originalUrlData && <Image src={originalUrlData} alt="Original" fill style={{ objectFit: 'contain' }} />}
+              {!isFetchingPreview && !originalUrlData && !fetchError && <div className="absolute inset-0 flex flex-col items-center justify-center text-xs text-muted-foreground p-2 text-center"><ImageIcon className="h-6 w-6 mb-1" /><p>Vista Previa Original</p></div>}
             </div>
         </div>
         <div className="space-y-2">
             <p className="text-xs font-medium text-center text-muted-foreground">Vista Previa Ajustada</p>
             <div className="relative aspect-[9/16] w-full bg-muted/50 overflow-hidden rounded-md border">
-              {isLoading && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>}
-              {!isLoading && !adjustedUrl && <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground p-2 text-center">Vista previa tras el ajuste con IA</div>}
+              {isAdjusting && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>}
+              {!isAdjusting && !adjustedUrl && <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground p-2 text-center">Vista previa tras el ajuste con IA</div>}
               {adjustedUrl && <Image src={adjustedUrl} alt="Ajustada" fill style={{ objectFit: 'contain' }} />}
             </div>
         </div>
       </div>
-       <Button onClick={handleAdjust} disabled={isLoading} className="w-full" variant="secondary">
-        {isLoading ? (
+       <Button onClick={handleAdjust} disabled={isAdjusting || isFetchingPreview || !!fetchError} className="w-full" variant="secondary">
+        {isAdjusting ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Ajustando...
