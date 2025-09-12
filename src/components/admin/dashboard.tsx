@@ -150,6 +150,7 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
 
   const formatDate = (dateString: string) => {
     try {
+        if (!dateString) return 'Fecha no disponible';
         return format(parseISO(dateString), "PPpp", { locale: es });
     } catch (e) {
         return 'Fecha inválida';
@@ -314,4 +315,5 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
       </section>
     </div>
   );
-}
+
+    
