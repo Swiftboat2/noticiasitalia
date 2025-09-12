@@ -62,7 +62,7 @@ export default function NewsViewer() {
   const [loading, setLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
   const autoplay = useRef(
-    Autoplay({ delay: 10000, stopOnInteraction: false, stopOnMouseEnter: true })
+    Autoplay({ delay: 0, stopOnInteraction: false, stopOnMouseEnter: true })
   );
 
   useEffect(() => {
@@ -108,22 +108,23 @@ export default function NewsViewer() {
 
   useEffect(() => {
     if (!api || news.length === 0) return;
-  
+
     const handleSelect = () => {
       const currentSlideIndex = api.selectedScrollSnap();
       const currentItem = news[currentSlideIndex];
       if (currentItem && autoplay.current) {
-        // Stop the autoplay plugin
-        autoplay.current.stop();
-        // Re-initialize it with the new delay. This is more reliable than just changing the option.
         (autoplay.current.options as any).delay = currentItem.duration * 1000;
-        autoplay.current.play();
+        autoplay.current.reset();
       }
     };
-  
+    
     api.on("select", handleSelect);
-    handleSelect(); // Set initial delay
-  
+    
+    // Set initial delay for the first item
+    if (news.length > 0) {
+        handleSelect();
+    }
+
     return () => {
       api.off("select", handleSelect);
     };
