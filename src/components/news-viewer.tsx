@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import Image from 'next/image';
 import { db } from '@/lib/firebase/config';
-import type { NewsItem, TickerMessage } from '@/types';
+import type { NewsItem } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import Autoplay from "embla-carousel-autoplay";
@@ -12,8 +12,6 @@ import { Skeleton } from './ui/skeleton';
 import { NewsTicker } from './news-ticker';
 
 const NEWS_CACHE_KEY = 'noticias_italia_cache';
-const TICKER_CACHE_KEY = 'noticias_ticker_cache';
-
 
 const getYouTubeEmbedUrl = (url: string) => {
     let videoId;
@@ -64,7 +62,7 @@ export default function NewsViewer() {
   const [loading, setLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
   const autoplay = useRef(
-    Autoplay({ delay: 5000, stopOnInteraction: false, stopOnMouseEnter: true })
+    Autoplay({ delay: 10000, stopOnInteraction: false, stopOnMouseEnter: true })
   );
 
   useEffect(() => {
@@ -110,23 +108,25 @@ export default function NewsViewer() {
 
   useEffect(() => {
     if (!api || news.length === 0) return;
-
+  
     const handleSelect = () => {
       const currentSlideIndex = api.selectedScrollSnap();
       const currentItem = news[currentSlideIndex];
-      if (currentItem) {
-        autoplay.current.options.delay = currentItem.duration * 1000;
-        autoplay.current.reset();
+      if (currentItem && autoplay.current) {
+        // Here we stop and then play, which re-initializes with the new options.
+        autoplay.current.stop();
+        (autoplay.current.options as any).delay = currentItem.duration * 1000;
+        // A small timeout is needed to ensure the options are applied before playing.
+        setTimeout(() => autoplay.current.play(), 50);
       }
     };
-    
+  
     api.on("select", handleSelect);
     handleSelect(); // Set initial delay
-
+  
     return () => {
       api.off("select", handleSelect);
     };
-
   }, [api, news]);
   
   const renderContent = (item: NewsItem) => {
