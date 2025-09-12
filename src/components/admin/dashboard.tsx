@@ -50,6 +50,8 @@ import {
   Eye,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
 
 export default function Dashboard({ initialNews }: { initialNews: NewsItem[] }) {
   const [news, setNews] = useState<NewsItem[]>(initialNews);
@@ -59,8 +61,25 @@ export default function Dashboard({ initialNews }: { initialNews: NewsItem[] }) 
   const router = useRouter();
   
   useEffect(() => {
-    setNews(initialNews);
-  }, [initialNews]);
+    const q = query(collection(db, "news"), orderBy("createdAt", "desc"));
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const newsData: NewsItem[] = [];
+      querySnapshot.forEach((doc) => {
+        newsData.push({ id: doc.id, ...doc.data() } as NewsItem);
+      });
+      setNews(newsData);
+    }, (error) => {
+      console.error("Error al obtener noticias en tiempo real:", error);
+      toast({
+        variant: "destructive",
+        title: "Error de Sincronización",
+        description: "No se pudieron obtener las actualizaciones en tiempo real. Es posible que los datos que ves no estén actualizados.",
+      });
+    });
+
+    return () => unsubscribe();
+  }, [toast]);
 
   const handleEdit = (item: NewsItem) => {
     setEditingNews(item);
