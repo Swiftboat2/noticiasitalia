@@ -2,7 +2,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { addDoc, collection, deleteDoc, doc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { addDoc, collection, getDoc, deleteDoc, doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { z } from "zod";
 import { db } from "@/lib/firebase/config";
 import type { NewsItem, TickerMessage } from "@/types";
@@ -65,28 +65,28 @@ export async function addNewsItem(data: unknown) {
 }
 
 export async function updateNewsItem(id: string, data: Partial<Omit<NewsItem, 'id' | 'createdAt'>>) {
-  // We can't use the full NewsSchema here because partial updates are allowed.
-  // We can validate specific fields if needed, but for now we trust the partial data.
+  const newsRef = doc(db, "news", id);
   const updateData = { ...data };
 
   // If the URL is being updated for an image, convert it to a data URI if it's an http url
-  if (updateData.url && (data.type === 'image' || !data.type)) { // Check if type is image or not being changed
-      const docSnap = await (await doc(db, 'news', id)).get();
-      const currentData = docSnap.data();
-      if ((currentData && currentData.type === 'image') || data.type === 'image') {
-          if (isHttpUrl(updateData.url)) {
-              const imageResult = await fetchImageAsDataUrl(updateData.url);
-              if (imageResult.success && imageResult.dataUrl) {
-                  updateData.url = imageResult.dataUrl;
-              } else {
-                  return { error: `No se pudo procesar la URL de la imagen: ${imageResult.error}` };
-              }
-          }
+  if (updateData.url && (data.type === 'image' || !data.type)) {
+    const docSnap = await getDoc(newsRef);
+    const currentData = docSnap.data();
+
+    // Determine if the item is an image type
+    const isImageType = (currentData && currentData.type === 'image') || data.type === 'image';
+    
+    if (isImageType && isHttpUrl(updateData.url)) {
+      const imageResult = await fetchImageAsDataUrl(updateData.url);
+      if (imageResult.success && imageResult.dataUrl) {
+        updateData.url = imageResult.dataUrl;
+      } else {
+        return { error: `No se pudo procesar la URL de la imagen: ${imageResult.error}` };
       }
+    }
   }
 
   try {
-    const newsRef = doc(db, "news", id);
     await updateDoc(newsRef, updateData);
     revalidatePath("/admin/dashboard");
     revalidatePath("/");
@@ -174,3 +174,4 @@ export async function fetchImageAsDataUrl(url: string): Promise<{ success: boole
     return { success: false, error: error.message || 'Ocurrió un error desconocido al obtener la imagen.' };
   }
 }
+
