@@ -9,8 +9,6 @@ export function NewsTicker() {
   const [items, setItems] = useState<TickerMessage[]>([]);
 
   useEffect(() => {
-    console.log('NewsTicker montado'); // Debug log
-    
     const q = query(collection(db, "tickerMessages"), orderBy("createdAt", "desc")); 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const urgentItems = snapshot.docs.map(doc => {
@@ -20,7 +18,6 @@ export function NewsTicker() {
           return null;
       }).filter((item): item is TickerMessage => item !== null);
       
-      console.log('Ticker items actualizados:', urgentItems.length); // Debug log
       setItems(urgentItems);
     });
     
@@ -38,7 +35,6 @@ export function NewsTicker() {
       <div className="ticker-container py-2">
         <div className="ticker-content">
           <span className="ticker-item">{tickerContent}</span>
-          <span className="ticker-item">{tickerContent}</span>
         </div>
       </div>
       
@@ -49,21 +45,20 @@ export function NewsTicker() {
         }
         
         .ticker-content {
-          display: flex;
           animation: scroll-left 20s linear infinite;
         }
         
         .ticker-item {
+          display: inline-block;
           white-space: nowrap;
-          flex-shrink: 0;
         }
         
         @keyframes scroll-left {
           0% {
-            transform: translate3d(0, 0, 0);
+            transform: translateX(100%);
           }
           100% {
-            transform: translate3d(-100%, 0, 0);
+            transform: translateX(-100%);
           }
         }
         
