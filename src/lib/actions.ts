@@ -4,30 +4,28 @@ import { revalidatePath } from "next/cache";
 import { addDoc, collection, deleteDoc, doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { z } from "zod";
 import { db } from "@/lib/firebase/config";
-import type { NewsItem } from "@/types";
+import type { NewsItem, TickerMessage } from "@/types";
 
+// Schema for News Items
 const NewsSchema = z.object({
   url: z.string().min(1, { message: "Por favor, proporciona una URL o un data URI." }),
   type: z.enum(["image", "video", "text"]),
   duration: z.coerce.number().min(1, { message: "La duración debe ser de al menos 1 segundo." }),
   active: z.boolean().default(true),
-  tickerText: z.string().optional(),
 });
 
-export async function addNewsItem(formData: FormData) {
-  const validatedFields = NewsSchema.safeParse({
-    url: formData.get('url'),
-    type: formData.get('type'),
-    duration: formData.get('duration'),
-    active: formData.get('active') === 'on',
-    tickerText: formData.get('tickerText'),
-  });
+// Schema for Ticker Messages
+const TickerSchema = z.object({
+  text: z.string().min(1, { message: "El texto del mensaje no puede estar vacío." }).max(200, { message: "El texto no puede superar los 200 caracteres."}),
+});
+
+
+// News Item Actions
+export async function addNewsItem(data: unknown) {
+  const validatedFields = NewsSchema.safeParse(data);
 
   if (!validatedFields.success) {
-    return {
-      errors: validatedFields.error.flatten().fieldErrors,
-      error: validatedFields.error.flatten().formErrors.join(', ')
-    };
+    return { error: validatedFields.error.flatten().formErrors.join(', ') };
   }
 
   try {
@@ -42,11 +40,14 @@ export async function addNewsItem(formData: FormData) {
   }
 }
 
-export async function updateNewsItem(id: string, data: Partial<NewsItem>) {
+export async function updateNewsItem(id: string, data: Partial<Omit<NewsItem, 'id' | 'createdAt'>>) {
+  // We can't use the full NewsSchema here because partial updates are allowed.
+  // We can validate specific fields if needed, but for now we trust the partial data.
   try {
     const newsRef = doc(db, "news", id);
     await updateDoc(newsRef, data);
     revalidatePath("/admin/dashboard");
+    revalidatePath("/");
     return { success: true };
   } catch (error) {
     return { error: "No se pudo actualizar la noticia." };
@@ -63,6 +64,55 @@ export async function deleteNewsItem(id: string) {
   }
 }
 
+
+// Ticker Message Actions
+export async function addTickerMessage(data: unknown) {
+  const validatedFields = TickerSchema.safeParse(data);
+
+  if (!validatedFields.success) {
+    return { error: validatedFields.error.flatten().formErrors.join(', ') };
+  }
+
+  try {
+    await addDoc(collection(db, "tickerMessages"), {
+      ...validatedFields.data,
+      createdAt: serverTimestamp(),
+    });
+    revalidatePath("/admin/dashboard");
+    return { success: true };
+  } catch (error) {
+    return { error: "No se pudo crear el mensaje del ticker." };
+  }
+}
+
+export async function updateTickerMessage(id: string, data: Partial<Omit<TickerMessage, 'id' | 'createdAt'>>) {
+   const validatedFields = TickerSchema.safeParse(data);
+    if (!validatedFields.success) {
+        return { error: validatedFields.error.flatten().formErrors.join(', ') };
+    }
+  try {
+    const tickerRef = doc(db, "tickerMessages", id);
+    await updateDoc(tickerRef, validatedFields.data);
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    return { error: "No se pudo actualizar el mensaje del ticker." };
+  }
+}
+
+export async function deleteTickerMessage(id: string) {
+  try {
+    await deleteDoc(doc(db, "tickerMessages", id));
+    revalidatePath("/admin/dashboard");
+    return { success: true };
+  } catch (error) {
+    return { error: "No se pudo eliminar el mensaje del ticker." };
+  }
+}
+
+
+// Image Fetching Action
 export async function fetchImageAsDataUrl(url: string): Promise<{ success: boolean; dataUrl?: string; error?: string }> {
   try {
     const response = await fetch(url, { headers: { 'User-Agent': 'NoticiasItalia-App/1.0' }});

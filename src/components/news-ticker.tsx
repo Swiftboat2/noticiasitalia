@@ -1,19 +1,17 @@
 "use client";
 
-import { NewsItem } from "@/types";
+import type { TickerMessage } from "@/types";
 
 interface NewsTickerProps {
-  items: NewsItem[];
+  items: TickerMessage[];
 }
 
 export function NewsTicker({ items }: NewsTickerProps) {
-  const tickerItems = items.filter(item => item.tickerText && item.tickerText.trim() !== '');
-
-  if (tickerItems.length === 0) {
+  if (items.length === 0) {
     return null;
   }
 
-  const tickerText = tickerItems.map(item => item.tickerText).join(" ••• ");
+  const tickerText = items.map(item => item.text).join(" ••• ");
 
   return (
     <div className="absolute bottom-0 left-0 right-0 h-12 bg-primary/90 text-primary-foreground backdrop-blur-sm overflow-hidden z-10">

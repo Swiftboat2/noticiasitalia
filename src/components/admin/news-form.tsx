@@ -13,7 +13,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -26,11 +25,10 @@ import { useToast } from "@/hooks/use-toast";
 import type { NewsItem } from "@/types";
 import { AIImageAdjuster } from "./ai-image-adjuster";
 import { useEffect, useState } from "react";
+import { addNewsItem, updateNewsItem } from "@/lib/actions";
 
 interface NewsFormProps {
   newsItem?: NewsItem | null;
-  onSubmit: (formData: FormData) => Promise<any>;
-  onUpdate: (id: string, data: Partial<NewsItem>) => Promise<any>;
   onFinished: () => void;
 }
 
@@ -39,7 +37,6 @@ const formSchema = z.object({
   type: z.enum(["image", "video", "text"], { required_error: "Por favor, selecciona un tipo." }),
   duration: z.coerce.number().min(1, { message: "La duración debe ser de al menos 1 segundo." }),
   active: z.boolean().default(true),
-  tickerText: z.string().optional(),
 });
 
 const isHttpUrl = (string: string): boolean => {
@@ -51,7 +48,7 @@ const isHttpUrl = (string: string): boolean => {
   }
 };
 
-export function NewsForm({ newsItem, onSubmit, onUpdate, onFinished }: NewsFormProps) {
+export function NewsForm({ newsItem, onFinished }: NewsFormProps) {
   const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -60,7 +57,6 @@ export function NewsForm({ newsItem, onSubmit, onUpdate, onFinished }: NewsFormP
       type: newsItem?.type ?? "image",
       duration: newsItem?.duration ?? 10,
       active: newsItem?.active ?? true,
-      tickerText: newsItem?.tickerText ?? "",
     },
   });
 
@@ -76,43 +72,40 @@ export function NewsForm({ newsItem, onSubmit, onUpdate, onFinished }: NewsFormP
       setShowAiAdjuster(false);
     }
   }, [watchedType, watchedUrl]);
+  
+   useEffect(() => {
+    // When editing, repopulate the form
+    if (newsItem) {
+      form.reset({
+        url: newsItem.url,
+        type: newsItem.type,
+        duration: newsItem.duration,
+        active: newsItem.active,
+      });
+    } else {
+      form.reset({
+        url: "",
+        type: "image",
+        duration: 10,
+        active: true,
+      });
+    }
+  }, [newsItem, form]);
 
   const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (newsItem) {
-      // Update existing item
-      const result = await onUpdate(newsItem.id, values);
-      if (result.success) {
-        toast({ title: "Éxito", description: "Noticia actualizada." });
-        onFinished();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: result.error,
-        });
-      }
+    const result = newsItem
+      ? await updateNewsItem(newsItem.id, values)
+      : await addNewsItem(values);
+
+    if (result.success) {
+      toast({ title: "Éxito", description: `Noticia ${newsItem ? 'actualizada' : 'creada'}.` });
+      onFinished();
     } else {
-      // Create new item
-      const formData = new FormData();
-      formData.append('url', values.url);
-      formData.append('type', values.type);
-      formData.append('duration', String(values.duration));
-      formData.append('active', values.active ? 'on' : 'off');
-      if (values.tickerText) {
-        formData.append('tickerText', values.tickerText);
-      }
-      
-      const result = await onSubmit(formData);
-      if (result.success) {
-        toast({ title: "Éxito", description: "Noticia creada." });
-        onFinished();
-      } else {
-         toast({
-          variant: "destructive",
-          title: "Error al Crear Noticia",
-          description: result.error || "Ha ocurrido un error desconocido.",
-        });
-      }
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: result.error || "Ha ocurrido un error desconocido.",
+      });
     }
   };
 
@@ -172,19 +165,6 @@ export function NewsForm({ newsItem, onSubmit, onUpdate, onFinished }: NewsFormP
               <FormLabel>Duración (segundos)</FormLabel>
               <FormControl>
                 <Input type="number" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-         <FormField
-          control={form.control}
-          name="tickerText"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Texto del Ticker (Opcional)</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Escribe un texto corto para el ticker de noticias urgentes..." {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

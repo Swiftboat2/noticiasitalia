@@ -7,5 +7,10 @@ export type NewsItem = {
   active: boolean;
   createdAt: Timestamp;
   duration: number;
-  tickerText?: string;
+};
+
+export type TickerMessage = {
+  id: string;
+  text: string;
+  createdAt: Timestamp;
 };

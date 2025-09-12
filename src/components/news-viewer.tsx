@@ -4,14 +4,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import Image from 'next/image';
 import { db } from '@/lib/firebase/config';
-import type { NewsItem } from '@/types';
+import type { NewsItem, TickerMessage } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import Autoplay from "embla-carousel-autoplay";
 import { Skeleton } from './ui/skeleton';
 import { NewsTicker } from './news-ticker';
 
-const CACHE_KEY = 'noticias_italia_cache';
+const NEWS_CACHE_KEY = 'noticias_italia_cache';
+const TICKER_CACHE_KEY = 'noticias_ticker_cache';
+
 
 const getYouTubeEmbedUrl = (url: string) => {
     let videoId;
@@ -59,6 +61,7 @@ const getYouTubeEmbedUrl = (url: string) => {
 export default function NewsViewer() {
   const [api, setApi] = useState<CarouselApi>();
   const [news, setNews] = useState<NewsItem[]>([]);
+  const [tickerMessages, setTickerMessages] = useState<TickerMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
   const autoplay = useRef(
@@ -66,13 +69,10 @@ export default function NewsViewer() {
   );
 
   useEffect(() => {
-    const handleOnlineStatus = () => {
-      setIsOffline(!navigator.onLine);
-    };
+    const handleOnlineStatus = () => setIsOffline(!navigator.onLine);
     window.addEventListener('online', handleOnlineStatus);
     window.addEventListener('offline', handleOnlineStatus);
     handleOnlineStatus();
-
     return () => {
       window.removeEventListener('online', handleOnlineStatus);
       window.removeEventListener('offline', handleOnlineStatus);
@@ -82,38 +82,47 @@ export default function NewsViewer() {
   useEffect(() => {
     if (isOffline) {
       console.log("La aplicación está desconectada. Cargando desde la caché.");
-      const cachedNews = localStorage.getItem(CACHE_KEY);
-      if (cachedNews) {
-        setNews(JSON.parse(cachedNews));
-      }
+      const cachedNews = localStorage.getItem(NEWS_CACHE_KEY);
+      const cachedTicker = localStorage.getItem(TICKER_CACHE_KEY);
+      if (cachedNews) setNews(JSON.parse(cachedNews));
+      if (cachedTicker) setTickerMessages(JSON.parse(cachedTicker));
       setLoading(false);
       return;
     }
 
     console.log("La aplicación está en línea. Obteniendo datos de Firestore.");
-    const q = query(collection(db, "news"), orderBy("createdAt", "desc"));
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const newsData: NewsItem[] = [];
-      querySnapshot.forEach((doc) => {
-        newsData.push({ id: doc.id, ...doc.data() } as NewsItem);
-      });
-      // Filter for active news client-side to avoid composite index requirement
+    
+    // News subscription
+    const newsQuery = query(collection(db, "news"), orderBy("createdAt", "desc"));
+    const newsUnsubscribe = onSnapshot(newsQuery, (snapshot) => {
+      const newsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as NewsItem);
       const activeNews = newsData.filter(item => item.active);
       setNews(activeNews);
-      localStorage.setItem(CACHE_KEY, JSON.stringify(activeNews));
-      setLoading(false);
+      localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(activeNews));
+      setLoading(false); // Set loading to false after first data fetch
     }, (error) => {
       console.error("Error al obtener noticias:", error);
-      // Fallback to cache on error
-      const cachedNews = localStorage.getItem(CACHE_KEY);
-      if (cachedNews) {
-        setNews(JSON.parse(cachedNews));
-      }
+      const cachedNews = localStorage.getItem(NEWS_CACHE_KEY);
+      if (cachedNews) setNews(JSON.parse(cachedNews));
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    // Ticker subscription
+    const tickerQuery = query(collection(db, "tickerMessages"), orderBy("createdAt", "desc"));
+    const tickerUnsubscribe = onSnapshot(tickerQuery, (snapshot) => {
+      const tickerData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as TickerMessage);
+      setTickerMessages(tickerData);
+      localStorage.setItem(TICKER_CACHE_KEY, JSON.stringify(tickerData));
+    }, (error) => {
+      console.error("Error al obtener mensajes del ticker:", error);
+      const cachedTicker = localStorage.getItem(TICKER_CACHE_KEY);
+      if (cachedTicker) setTickerMessages(JSON.parse(cachedTicker));
+    });
+
+    return () => {
+      newsUnsubscribe();
+      tickerUnsubscribe();
+    };
   }, [isOffline]);
 
   useEffect(() => {
@@ -124,7 +133,6 @@ export default function NewsViewer() {
       const currentItem = news[currentSlideIndex];
       if (currentItem) {
         autoplay.current.options.delay = currentItem.duration * 1000;
-        // The reset is needed for the new delay to take effect
         autoplay.current.reset();
       }
     };
@@ -141,37 +149,11 @@ export default function NewsViewer() {
   const renderContent = (item: NewsItem) => {
     switch (item.type) {
       case 'image':
-        return (
-          <Image
-            src={item.url}
-            alt="Contenido de la noticia"
-            fill
-            sizes="100vw"
-            className="object-cover"
-            priority
-            quality={100}
-          />
-        );
+        return <Image src={item.url} alt="Contenido de la noticia" fill sizes="100vw" className="object-cover" priority quality={100}/>;
       case 'video':
-        return (
-           <iframe
-            src={getYouTubeEmbedUrl(item.url)}
-            title="Video de la noticia"
-            className="w-full h-full"
-            allow="autoplay; encrypted-media; picture-in-picture"
-            allowFullScreen
-            sandbox="allow-scripts allow-same-origin allow-forms"
-          ></iframe>
-        );
+        return <iframe src={getYouTubeEmbedUrl(item.url)} title="Video de la noticia" className="w-full h-full" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen sandbox="allow-scripts allow-same-origin allow-forms"></iframe>;
       case 'text':
-         return (
-          <iframe
-            src={item.url}
-            title="Contenido de la noticia"
-            className="w-full h-full bg-white"
-            sandbox="allow-scripts allow-same-origin allow-forms"
-          ></iframe>
-        );
+         return <iframe src={item.url} title="Contenido de la noticia" className="w-full h-full bg-white" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>;
       default:
         return <p className="text-white">Tipo de contenido no soportado</p>;
     }
@@ -187,12 +169,7 @@ export default function NewsViewer() {
             <p className="text-white text-2xl font-headline">No hay noticias activas.</p>
           </div>
         ) : (
-          <Carousel
-            className="w-full h-full"
-            setApi={setApi}
-            plugins={[autoplay.current]}
-            opts={{ loop: true }}
-          >
+          <Carousel className="w-full h-full" setApi={setApi} plugins={[autoplay.current]} opts={{ loop: true }}>
             <CarouselContent className="h-full">
               {news.map((item) => (
                 <CarouselItem key={item.id} className="h-full">
@@ -206,7 +183,7 @@ export default function NewsViewer() {
             </CarouselContent>
           </Carousel>
         )}
-         <NewsTicker items={news} />
+         <NewsTicker items={tickerMessages} />
       </div>
     </div>
   );
