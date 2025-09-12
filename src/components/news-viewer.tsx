@@ -39,6 +39,7 @@ const getYouTubeEmbedUrl = (url: string) => {
     if (videoId) {
         const params = new URLSearchParams({
             autoplay: '1',
+            mute: '1',
             loop: '1',
             playlist: videoId, // Required for loop to work on single videos
             controls: '0',
@@ -120,10 +121,6 @@ export default function NewsViewer() {
     
     let duration = (currentItem.duration && currentItem.duration > 0) ? currentItem.duration : 10;
     
-    // For videos, the duration is handled by the video itself.
-    // Let's set a very long timer, and the onSelect event will handle the transition
-    // when a video ends (or if it's manually changed).
-    // Note: YouTube loop=1 will handle replay, but let's keep timer logic consistent
     if (currentItem.type === 'video') {
        // We let the video play. The timer is just a fallback.
     }
@@ -173,7 +170,7 @@ export default function NewsViewer() {
       case 'image':
         return <Image src={item.url} alt="Contenido de la noticia" fill sizes="100vw" className="object-cover" priority quality={100}/>;
       case 'video':
-        // Only render the iframe if the slide is active to prevent background playback
+        // Only render the iframe if the slide is active to prevent background playback and sound issues
         return isActive ? <iframe src={getYouTubeEmbedUrl(item.url)} title="Video de la noticia" className="w-full h-full" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen sandbox="allow-scripts allow-same-origin allow-forms"></iframe> : null;
       case 'text':
          return <iframe src={item.url} title="Contenido de la noticia" className="w-full h-full bg-white" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>;
