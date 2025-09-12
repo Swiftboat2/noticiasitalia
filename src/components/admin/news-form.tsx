@@ -23,8 +23,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import type { NewsItem } from "@/types";
-import { AIImageAdjuster } from "./ai-image-adjuster";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { addNewsItem, updateNewsItem } from "@/lib/actions";
 
 interface NewsFormProps {
@@ -39,15 +38,6 @@ const formSchema = z.object({
   active: z.boolean().default(true),
 });
 
-const isHttpUrl = (string: string): boolean => {
-  try {
-    const url = new URL(string);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch (_) {
-    return false;
-  }
-};
-
 export function NewsForm({ newsItem, onFinished }: NewsFormProps) {
   const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
@@ -59,19 +49,6 @@ export function NewsForm({ newsItem, onFinished }: NewsFormProps) {
       active: newsItem?.active ?? true,
     },
   });
-
-  const watchedType = form.watch("type");
-  const watchedUrl = form.watch("url");
-  const [showAiAdjuster, setShowAiAdjuster] = useState(false);
-
-  useEffect(() => {
-    // Only show adjuster for http/https URLs, not for data URIs
-    if (watchedType === 'image' && isHttpUrl(watchedUrl)) {
-      setShowAiAdjuster(true);
-    } else {
-      setShowAiAdjuster(false);
-    }
-  }, [watchedType, watchedUrl]);
   
    useEffect(() => {
     // When editing, repopulate the form
@@ -147,15 +124,6 @@ export function NewsForm({ newsItem, onFinished }: NewsFormProps) {
             </FormItem>
           )}
         />
-        
-        {showAiAdjuster && (
-          <AIImageAdjuster
-            imageUrl={watchedUrl}
-            onImageAdjusted={(newUrl) => {
-              form.setValue('url', newUrl, { shouldValidate: true, shouldDirty: true });
-            }}
-          />
-        )}
 
         <FormField
           control={form.control}
