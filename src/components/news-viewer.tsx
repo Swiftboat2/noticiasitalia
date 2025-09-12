@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import Image from 'next/image';
 import { db } from '@/lib/firebase/config';
 import type { NewsItem } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel';
-import Autoplay from "embla-carousel-autoplay";
 import { Skeleton } from './ui/skeleton';
 import { NewsTicker } from './news-ticker';
 
@@ -61,9 +60,7 @@ export default function NewsViewer() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
-  const autoplay = useRef(
-    Autoplay({ delay: 0, stopOnInteraction: false, stopOnMouseEnter: true })
-  );
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     const handleOnlineStatus = () => setIsOffline(!navigator.onLine);
@@ -106,27 +103,47 @@ export default function NewsViewer() {
     };
   }, [isOffline]);
 
+  // Logic for custom autoplay
   useEffect(() => {
     if (!api || news.length === 0) return;
 
-    const handleSelect = () => {
-      const currentSlideIndex = api.selectedScrollSnap();
-      const currentItem = news[currentSlideIndex];
-      if (currentItem && autoplay.current) {
-        (autoplay.current.options as any).delay = currentItem.duration * 1000;
-        autoplay.current.reset();
-      }
-    };
-    
-    api.on("select", handleSelect);
-    
-    // Set initial delay for the first item
-    if (news.length > 0) {
-        handleSelect();
-    }
+    // Clear previous timer
+    let timer: NodeJS.Timeout;
 
+    // Function to start the timer for the next slide
+    const startTimer = () => {
+      const selectedIndex = api.selectedScrollSnap();
+      const currentItem = news[selectedIndex];
+      
+      if (!currentItem) return;
+      
+      // Get duration, default to 10 seconds if not set
+      const duration = (currentItem.duration || 10) * 1000;
+
+      timer = setTimeout(() => {
+        api.scrollNext();
+      }, duration);
+    };
+
+    // Start the first timer
+    startTimer();
+    
+    // Set up event listener for when a slide is selected
+    const onSelect = () => {
+      clearTimeout(timer); // Clear old timer
+      startTimer(); // Start a new timer for the new slide
+      setCurrentSlide(api.selectedScrollSnap());
+    };
+
+    api.on("select", onSelect);
+    api.on("pointerDown", () => clearTimeout(timer)); // Stop timer on user interaction
+
+    // Cleanup
     return () => {
-      api.off("select", handleSelect);
+      clearTimeout(timer);
+      if (api) {
+        api.off("select", onSelect);
+      }
     };
   }, [api, news]);
   
@@ -153,7 +170,7 @@ export default function NewsViewer() {
             <p className="text-white text-2xl font-headline">No hay noticias activas.</p>
           </div>
         ) : (
-          <Carousel className="w-full h-full" setApi={setApi} plugins={[autoplay.current]} opts={{ loop: true }}>
+          <Carousel className="w-full h-full" setApi={setApi} opts={{ loop: true }}>
             <CarouselContent className="h-full">
               {news.map((item) => (
                 <CarouselItem key={item.id} className="h-full">
