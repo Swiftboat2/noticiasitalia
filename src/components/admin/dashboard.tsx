@@ -55,6 +55,7 @@ import {
 import { useRouter } from "next/navigation";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface DashboardProps {
   initialNews: NewsItem[];
@@ -165,15 +166,17 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
                 <PlusCircle className="mr-2 h-4 w-4" /> Añadir Noticia
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>{editingNews ? "Editar Noticia" : "Añadir Noticia"}</DialogTitle>
-                <DialogDescription>{editingNews ? "Actualiza los detalles." : "Rellena el formulario para añadir una nueva noticia."}</DialogDescription>
-              </DialogHeader>
-              <NewsForm
-                newsItem={editingNews}
-                onFinished={() => { setIsNewsFormOpen(false); setEditingNews(null); }}
-              />
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>{editingNews ? "Editar Noticia" : "Añadir Noticia"}</DialogTitle>
+                  <DialogDescription>{editingNews ? "Actualiza los detalles." : "Rellena el formulario para añadir una nueva noticia."}</DialogDescription>
+                </DialogHeader>
+                <ScrollArea className="max-h-[70vh] pr-6">
+                    <NewsForm
+                        newsItem={editingNews}
+                        onFinished={() => { setIsNewsFormOpen(false); setEditingNews(null); }}
+                    />
+                </ScrollArea>
             </DialogContent>
           </Dialog>
         </div>
@@ -289,3 +292,5 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
     </div>
   );
 }
+
+    
