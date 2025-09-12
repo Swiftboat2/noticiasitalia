@@ -1,3 +1,4 @@
+
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -20,6 +21,17 @@ const TickerSchema = z.object({
 });
 
 
+// Helper to check for external image URLs
+const isHttpUrl = (string: string): boolean => {
+  try {
+    const url = new URL(string);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch (_) {
+    return false;
+  }
+};
+
+
 // News Item Actions
 export async function addNewsItem(data: unknown) {
   const validatedFields = NewsSchema.safeParse(data);
@@ -27,10 +39,22 @@ export async function addNewsItem(data: unknown) {
   if (!validatedFields.success) {
     return { error: validatedFields.error.flatten().formErrors.join(', ') };
   }
+  
+  const newsData = validatedFields.data;
+
+  // If the item is an image and the URL is external, convert it to a data URI
+  if (newsData.type === 'image' && isHttpUrl(newsData.url)) {
+      const imageResult = await fetchImageAsDataUrl(newsData.url);
+      if (imageResult.success && imageResult.dataUrl) {
+          newsData.url = imageResult.dataUrl;
+      } else {
+          return { error: `No se pudo procesar la URL de la imagen: ${imageResult.error}` };
+      }
+  }
 
   try {
     await addDoc(collection(db, "news"), {
-      ...validatedFields.data,
+      ...newsData,
       createdAt: serverTimestamp(),
     });
     revalidatePath("/admin/dashboard");
@@ -43,9 +67,27 @@ export async function addNewsItem(data: unknown) {
 export async function updateNewsItem(id: string, data: Partial<Omit<NewsItem, 'id' | 'createdAt'>>) {
   // We can't use the full NewsSchema here because partial updates are allowed.
   // We can validate specific fields if needed, but for now we trust the partial data.
+  const updateData = { ...data };
+
+  // If the URL is being updated for an image, convert it to a data URI if it's an http url
+  if (updateData.url && (data.type === 'image' || !data.type)) { // Check if type is image or not being changed
+      const docSnap = await (await doc(db, 'news', id)).get();
+      const currentData = docSnap.data();
+      if ((currentData && currentData.type === 'image') || data.type === 'image') {
+          if (isHttpUrl(updateData.url)) {
+              const imageResult = await fetchImageAsDataUrl(updateData.url);
+              if (imageResult.success && imageResult.dataUrl) {
+                  updateData.url = imageResult.dataUrl;
+              } else {
+                  return { error: `No se pudo procesar la URL de la imagen: ${imageResult.error}` };
+              }
+          }
+      }
+  }
+
   try {
     const newsRef = doc(db, "news", id);
-    await updateDoc(newsRef, data);
+    await updateDoc(newsRef, updateData);
     revalidatePath("/admin/dashboard");
     revalidatePath("/");
     return { success: true };
@@ -115,7 +157,8 @@ export async function deleteTickerMessage(id: string) {
 // Image Fetching Action
 export async function fetchImageAsDataUrl(url: string): Promise<{ success: boolean; dataUrl?: string; error?: string }> {
   try {
-    const response = await fetch(url, { headers: { 'User-Agent': 'NoticiasItalia-App/1.0' }});
+    // Some URLs (like from Instagram) require a specific User-Agent
+    const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' }});
     if (!response.ok) {
       throw new Error(`Error al obtener la imagen. El servidor respondió con ${response.status}`);
     }
