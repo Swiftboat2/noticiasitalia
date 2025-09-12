@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import Autoplay from "embla-carousel-autoplay";
 import { Skeleton } from './ui/skeleton';
+import { NewsTicker } from './news-ticker';
 
 const CACHE_KEY = 'noticias_italia_cache';
 
@@ -205,6 +206,7 @@ export default function NewsViewer() {
             </CarouselContent>
           </Carousel>
         )}
+         <NewsTicker items={news} />
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -38,6 +39,7 @@ const formSchema = z.object({
   type: z.enum(["image", "video", "text"], { required_error: "Por favor, selecciona un tipo." }),
   duration: z.coerce.number().min(1, { message: "La duración debe ser de al menos 1 segundo." }),
   active: z.boolean().default(true),
+  tickerText: z.string().optional(),
 });
 
 const isHttpUrl = (string: string): boolean => {
@@ -58,6 +60,7 @@ export function NewsForm({ newsItem, onSubmit, onUpdate, onFinished }: NewsFormP
       type: newsItem?.type ?? "image",
       duration: newsItem?.duration ?? 10,
       active: newsItem?.active ?? true,
+      tickerText: newsItem?.tickerText ?? "",
     },
   });
 
@@ -95,6 +98,9 @@ export function NewsForm({ newsItem, onSubmit, onUpdate, onFinished }: NewsFormP
       formData.append('type', values.type);
       formData.append('duration', String(values.duration));
       formData.append('active', values.active ? 'on' : 'off');
+      if (values.tickerText) {
+        formData.append('tickerText', values.tickerText);
+      }
       
       const result = await onSubmit(formData);
       if (result.success) {
@@ -166,6 +172,19 @@ export function NewsForm({ newsItem, onSubmit, onUpdate, onFinished }: NewsFormP
               <FormLabel>Duración (segundos)</FormLabel>
               <FormControl>
                 <Input type="number" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+         <FormField
+          control={form.control}
+          name="tickerText"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Texto del Ticker (Opcional)</FormLabel>
+              <FormControl>
+                <Textarea placeholder="Escribe un texto corto para el ticker de noticias urgentes..." {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

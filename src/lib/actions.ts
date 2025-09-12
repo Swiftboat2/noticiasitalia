@@ -11,6 +11,7 @@ const NewsSchema = z.object({
   type: z.enum(["image", "video", "text"]),
   duration: z.coerce.number().min(1, { message: "La duración debe ser de al menos 1 segundo." }),
   active: z.boolean().default(true),
+  tickerText: z.string().optional(),
 });
 
 export async function addNewsItem(formData: FormData) {
@@ -19,6 +20,7 @@ export async function addNewsItem(formData: FormData) {
     type: formData.get('type'),
     duration: formData.get('duration'),
     active: formData.get('active') === 'on',
+    tickerText: formData.get('tickerText'),
   });
 
   if (!validatedFields.success) {
