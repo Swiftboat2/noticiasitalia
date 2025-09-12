@@ -22,8 +22,9 @@ const getYouTubeEmbedUrl = (url: string) => {
             if (urlObj.pathname === '/watch') {
                 videoId = urlObj.searchParams.get('v');
             } else if (urlObj.pathname.startsWith('/embed/')) {
-                const parts = urlObj.pathname.split('/');
-                videoId = parts[2];
+                videoId = urlObj.pathname.split('/')[2];
+            } else if (urlObj.pathname.startsWith('/shorts/')) {
+                videoId = urlObj.pathname.split('/')[2];
             }
         }
     } catch (e) {
@@ -31,7 +32,7 @@ const getYouTubeEmbedUrl = (url: string) => {
     }
     
     if (!videoId) {
-        const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
+        const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|&v=)([^#&?]*).*/);
         videoId = (match && match[2].length === 11) ? match[2] : null;
     }
 

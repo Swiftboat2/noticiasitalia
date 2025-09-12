@@ -45,7 +45,7 @@ export function NewsTicker() {
         }
         
         .ticker-content {
-          animation: scroll-left 20s linear infinite;
+          animation: scroll-left 15s linear infinite;
         }
         
         .ticker-item {
