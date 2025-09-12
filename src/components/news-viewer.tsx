@@ -39,7 +39,6 @@ const getYouTubeEmbedUrl = (url: string) => {
     if (videoId) {
         const params = new URLSearchParams({
             autoplay: '1',
-            mute: '1',
             loop: '1',
             playlist: videoId, // Required for loop to work on single videos
             controls: '0',
