@@ -62,8 +62,6 @@ export default function NewsViewer() {
   const [isOffline, setIsOffline] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const viewerRef = useRef<HTMLDivElement>(null);
-  const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
@@ -72,31 +70,10 @@ export default function NewsViewer() {
         window.addEventListener('offline', handleOnlineStatus);
         handleOnlineStatus();
 
-        const handleFullscreenChange = () => {
-            setIsFullScreen(document.fullscreenElement !== null);
-        };
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-
         return () => {
           window.removeEventListener('online', handleOnlineStatus);
           window.removeEventListener('offline', handleOnlineStatus);
-          document.removeEventListener('fullscreenchange', handleFullscreenChange);
         };
-    }
-  }, []);
-
-  const toggleFullScreen = useCallback(() => {
-    // We target document.body or a specific high-level container now
-    const fullScreenElement = document.getElementById('__next') || document.body;
-
-    if (!document.fullscreenElement) {
-        fullScreenElement.requestFullscreen().catch(err => {
-            console.error(`Error al intentar activar el modo de pantalla completa: ${err.message} (${err.name})`);
-        });
-    } else {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        }
     }
   }, []);
 
@@ -205,41 +182,28 @@ export default function NewsViewer() {
   };
 
   return (
-    <div ref={viewerRef} className="group relative w-[100vh] h-[100vw] transform -rotate-90 origin-top-left -translate-x-full">
-      <div className="relative h-full w-full flex items-center justify-center">
-        {loading ? (
-           <Skeleton className="w-full h-full bg-gray-800" />
-        ) : news.length === 0 ? (
-          <div className="flex items-center justify-center h-full w-full bg-gray-900">
-            <p className="text-white text-2xl font-headline">No hay noticias activas.</p>
-          </div>
-        ) : (
-          <Carousel className="w-full h-full" setApi={setApi} opts={{ loop: true }}>
-            <CarouselContent className="h-full">
-              {news.map((item, index) => (
-                <CarouselItem key={item.id} className="h-full">
-                  <Card className="w-full h-full border-0 bg-black rounded-none">
-                    <CardContent className="relative flex h-full items-center justify-center p-0">
-                      {renderContent(item, index)}
-                    </CardContent>
-                  </Card>
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-          </Carousel>
-        )}
-      </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={toggleFullScreen}
-        className={`absolute top-4 left-4 z-20 text-white bg-black/50 hover:bg-black/75 
-                   transform rotate-90
-                   ${isFullScreen ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'} 
-                   transition-opacity`}
-        >
-            <Maximize className="h-6 w-6" />
-      </Button>
+    <div className="relative h-full w-full flex items-center justify-center">
+      {loading ? (
+          <Skeleton className="w-full h-full bg-gray-800" />
+      ) : news.length === 0 ? (
+        <div className="flex items-center justify-center h-full w-full bg-gray-900">
+          <p className="text-white text-2xl font-headline">No hay noticias activas.</p>
+        </div>
+      ) : (
+        <Carousel className="w-full h-full" setApi={setApi} opts={{ loop: true }}>
+          <CarouselContent className="h-full">
+            {news.map((item, index) => (
+              <CarouselItem key={item.id} className="h-full">
+                <Card className="w-full h-full border-0 bg-black rounded-none">
+                  <CardContent className="relative flex h-full items-center justify-center p-0">
+                    {renderContent(item, index)}
+                  </CardContent>
+                </Card>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+        </Carousel>
+      )}
     </div>
   );
 }
