@@ -9,6 +9,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { Skeleton } from './ui/skeleton';
 import { NewsTicker } from './news-ticker';
+import { Button } from './ui/button';
+import { Maximize } from 'lucide-react';
 
 const NEWS_CACHE_KEY = 'noticias_italia_cache';
 
@@ -61,6 +63,8 @@ export default function NewsViewer() {
   const [isOffline, setIsOffline] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
@@ -68,10 +72,31 @@ export default function NewsViewer() {
         window.addEventListener('online', handleOnlineStatus);
         window.addEventListener('offline', handleOnlineStatus);
         handleOnlineStatus();
+
+        const handleFullscreenChange = () => {
+            setIsFullScreen(document.fullscreenElement !== null);
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+
         return () => {
           window.removeEventListener('online', handleOnlineStatus);
           window.removeEventListener('offline', handleOnlineStatus);
+          document.removeEventListener('fullscreenchange', handleFullscreenChange);
         };
+    }
+  }, []);
+
+  const toggleFullScreen = useCallback(() => {
+    if (!viewerRef.current) return;
+
+    if (!document.fullscreenElement) {
+        viewerRef.current.requestFullscreen().catch(err => {
+            console.error(`Error al intentar activar el modo de pantalla completa: ${err.message} (${err.name})`);
+        });
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
     }
   }, []);
 
@@ -180,8 +205,8 @@ export default function NewsViewer() {
   };
 
   return (
-    <div className="flex justify-center items-center h-screen w-screen bg-black">
-      <div className="relative w-full max-w-[calc(100vh*(9/16))] h-full aspect-9/16">
+    <div ref={viewerRef} className="flex justify-center items-center h-screen w-screen bg-black overflow-hidden group">
+      <div className="relative w-[100vh] h-[calc(100vh*9/16)] transform -rotate-90">
         {loading ? (
            <Skeleton className="w-full h-full bg-gray-800" />
         ) : news.length === 0 ? (
@@ -205,6 +230,16 @@ export default function NewsViewer() {
         )}
         <NewsTicker />
       </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggleFullScreen}
+        className={`absolute top-4 left-4 z-20 text-white bg-black/50 hover:bg-black/75 
+                   ${isFullScreen ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'} 
+                   transition-opacity`}
+        >
+            <Maximize className="h-6 w-6" />
+      </Button>
     </div>
   );
 }
