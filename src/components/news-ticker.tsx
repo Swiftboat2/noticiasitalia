@@ -31,7 +31,7 @@ export function NewsTicker() {
   const tickerContent = items.map(item => `🚨 ${item.text}`).join(" ••• ");
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-lg overflow-hidden whitespace-nowrap z-10">
+    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-base overflow-hidden whitespace-nowrap z-10">
       <div className="ticker-container py-1">
         <div className="ticker-content">
           <span className="ticker-item">{tickerContent}</span>
