@@ -31,26 +31,26 @@ export function NewsTicker() {
   const tickerContent = items.map(item => `${item.text}`).join(" ••• ");
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-r from-red-600 via-red-700 to-red-600 text-white overflow-hidden whitespace-nowrap z-10 flex items-center shadow-lg border-t-2 border-red-400/50 border-b-2 border-red-800/50">
+    <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-r from-red-600 via-red-700 to-red-600 text-white overflow-hidden whitespace-nowrap z-10 flex items-center shadow-lg border-t-2 border-red-400/50 border-b-2 border-red-800/50">
       
       {/* Indicador URGENTE fijo */}
-      <div className="flex-shrink-0 bg-red-800/80 h-full flex items-center px-4 shadow-md">
-        <span className="relative flex h-3 w-3 mr-2">
+      <div className="flex-shrink-0 bg-red-800/80 h-full flex items-center px-3 shadow-md">
+        <span className="relative flex h-2 w-2 mr-2">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
         </span>
-        <span className="font-bold text-sm tracking-wider">URGENTE</span>
+        <span className="font-bold text-xs tracking-wider">URGENTE</span>
       </div>
 
       {/* Ticker animado */}
       <div className="relative flex-grow h-full overflow-hidden">
         <div 
-          className="absolute inset-0 text-base"
+          className="absolute inset-0 text-sm"
           style={{
             animation: `scroll-left ${items.length * 15}s linear infinite`,
           }}
         >
-          <span className="inline-block h-full leading-10 px-8 text-shadow-md">
+          <span className="inline-block h-full leading-8 px-8 text-shadow-md">
             {tickerContent}
           </span>
         </div>
