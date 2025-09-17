@@ -31,8 +31,8 @@ export function NewsTicker() {
   const tickerContent = items.map(item => `🚨 ${item.text}`).join(" ••• ");
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-xl font-bold overflow-hidden whitespace-nowrap z-10">
-      <div className="ticker-container py-2">
+    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-lg overflow-hidden whitespace-nowrap z-10">
+      <div className="ticker-container py-1">
         <div className="ticker-content">
           <span className="ticker-item">{tickerContent}</span>
         </div>
@@ -45,17 +45,18 @@ export function NewsTicker() {
         }
         
         .ticker-content {
-          animation: scroll-left 15s linear infinite;
+          animation: scroll-left 25s linear infinite;
         }
         
         .ticker-item {
           display: inline-block;
           white-space: nowrap;
+          padding-left: 100%;
         }
         
         @keyframes scroll-left {
           0% {
-            transform: translateX(100%);
+            transform: translateX(0%);
           }
           100% {
             transform: translateX(-100%);
