@@ -219,10 +219,8 @@ export default function NewsViewer() {
               {news.map((item, index) => (
                 <CarouselItem key={item.id} className="h-full">
                   <Card className="w-full h-full border-0 bg-black rounded-none">
-                    <CardContent className="relative flex h-full items-center justify-center p-0 aspect-video">
-                      <div className='relative w-full h-full aspect-[9/16]'>
-                        {renderContent(item, index)}
-                      </div>
+                    <CardContent className="relative flex h-full items-center justify-center p-0">
+                      {renderContent(item, index)}
                     </CardContent>
                   </Card>
                 </CarouselItem>
