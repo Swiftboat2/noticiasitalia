@@ -31,41 +31,67 @@ export function NewsTicker() {
   const tickerContent = items.map(item => `🚨 ${item.text}`).join(" ••• ");
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-base overflow-hidden whitespace-nowrap z-10">
-      <div className="ticker-container py-1">
-        <div className="ticker-content">
-          <span className="ticker-item">{tickerContent}</span>
+    <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-r from-red-600 via-red-700 to-red-600 text-white overflow-hidden whitespace-nowrap z-10 flex items-center shadow-lg border-t-2 border-red-400/50 border-b-2 border-red-800/50">
+      
+      {/* Indicador URGENTE fijo */}
+      <div className="flex-shrink-0 bg-red-800/80 h-full flex items-center px-4 shadow-md">
+        <span className="relative flex h-3 w-3 mr-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+        </span>
+        <span className="font-bold text-sm tracking-wider">URGENTE</span>
+      </div>
+
+      {/* Ticker animado */}
+      <div className="relative flex-grow h-full overflow-hidden">
+        <div 
+          className="absolute inset-0 text-base"
+          style={{
+            animation: `scroll-left ${items.length * 15}s linear infinite`,
+          }}
+        >
+          <span className="inline-block h-full leading-10 px-8 text-shadow-md">
+            {tickerContent}
+          </span>
         </div>
+        
+        {/* Efecto de desvanecimiento a la derecha */}
+        <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-red-600 to-transparent"></div>
+        
+        {/* Efecto de brillo animado */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
+          <div 
+            className="absolute top-0 left-0 h-full w-24 bg-white/20 -skew-x-12"
+            style={{
+              filter: 'blur(10px)',
+              animation: 'shine 8s linear infinite'
+            }}
+          ></div>
+        </div>
+
       </div>
       
       <style jsx>{`
-        .ticker-container {
-          width: 100%;
-          position: relative;
-        }
-        
-        .ticker-content {
-          animation: scroll-left 25s linear infinite;
-        }
-        
-        .ticker-item {
-          display: inline-block;
-          white-space: nowrap;
-          padding-left: 100%;
-        }
-        
         @keyframes scroll-left {
           0% {
-            transform: translateX(0%);
+            transform: translateX(100%);
           }
           100% {
             transform: translateX(-100%);
           }
         }
-        
-        /* Pausar animación en hover para mejor UX */
-        .ticker-container:hover .ticker-content {
-          animation-play-state: paused;
+
+        @keyframes shine {
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(calc(100vw + 100%));
+          }
+        }
+
+        .text-shadow-md {
+          text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
         }
       `}</style>
     </div>
