@@ -28,38 +28,34 @@ export function NewsTicker() {
     return null;
   }
   
-  const tickerContent = items.map(item => `🚨 ${item.text}`).join(" ••• ");
+  const tickerContent = [...items, ...items].map((item, index) => (
+    <span key={`${item.id}-${index}`} className="ticker-item">
+      🚨 {item.text}
+    </span>
+  ));
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-xl font-bold overflow-hidden whitespace-nowrap z-10">
-      <div className="ticker-container py-2">
-        <div className="ticker-content">
-          <span className="ticker-item">{tickerContent}</span>
+    <div className="w-64 h-full bg-gray-900 text-white text-xl font-bold overflow-hidden z-10 flex flex-col justify-center">
+      <div className="ticker-container h-full relative">
+        <div className="ticker-content absolute inset-0">
+          {tickerContent}
         </div>
       </div>
       
       <style jsx>{`
         .ticker-container {
-          width: 100%;
-          position: relative;
+          mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
         }
         
         .ticker-content {
-          animation: scroll-left 15s linear infinite;
+          animation: scroll-up 50s linear infinite;
+          display: flex;
+          flex-direction: column;
         }
-        
+
         .ticker-item {
-          display: inline-block;
-          white-space: nowrap;
-        }
-        
-        @keyframes scroll-left {
-          0% {
-            transform: translateX(100%);
-          }
-          100% {
-            transform: translateX(-100%);
-          }
+          padding: 1rem 0.5rem;
+          text-align: center;
         }
         
         /* Pausar animación en hover para mejor UX */

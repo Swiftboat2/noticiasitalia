@@ -8,7 +8,6 @@ import type { NewsItem } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { Skeleton } from './ui/skeleton';
-import { NewsTicker } from './news-ticker';
 import { Button } from './ui/button';
 import { Maximize } from 'lucide-react';
 
@@ -87,10 +86,11 @@ export default function NewsViewer() {
   }, []);
 
   const toggleFullScreen = useCallback(() => {
-    if (!viewerRef.current) return;
+    // We target document.body or a specific high-level container now
+    const fullScreenElement = document.getElementById('__next') || document.body;
 
     if (!document.fullscreenElement) {
-        viewerRef.current.requestFullscreen().catch(err => {
+        fullScreenElement.requestFullscreen().catch(err => {
             console.error(`Error al intentar activar el modo de pantalla completa: ${err.message} (${err.name})`);
         });
     } else {
@@ -205,7 +205,7 @@ export default function NewsViewer() {
   };
 
   return (
-    <div ref={viewerRef} className="flex justify-center items-center h-screen w-screen bg-black overflow-hidden group">
+    <div ref={viewerRef} className="group relative w-[100vh] h-[100vw] transform -rotate-90 origin-top-left -translate-x-full">
       <div className="relative h-full w-full flex items-center justify-center">
         {loading ? (
            <Skeleton className="w-full h-full bg-gray-800" />
@@ -228,13 +228,13 @@ export default function NewsViewer() {
             </CarouselContent>
           </Carousel>
         )}
-        <NewsTicker />
       </div>
       <Button
         variant="ghost"
         size="icon"
         onClick={toggleFullScreen}
         className={`absolute top-4 left-4 z-20 text-white bg-black/50 hover:bg-black/75 
+                   transform rotate-90
                    ${isFullScreen ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'} 
                    transition-opacity`}
         >
