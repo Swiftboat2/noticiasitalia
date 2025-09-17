@@ -206,7 +206,7 @@ export default function NewsViewer() {
 
   return (
     <div ref={viewerRef} className="flex justify-center items-center h-screen w-screen bg-black overflow-hidden group">
-      <div className="relative w-[100vh] h-[calc(100vh*9/16)] transform -rotate-90">
+      <div className="relative h-full w-full flex items-center justify-center">
         {loading ? (
            <Skeleton className="w-full h-full bg-gray-800" />
         ) : news.length === 0 ? (
@@ -219,8 +219,10 @@ export default function NewsViewer() {
               {news.map((item, index) => (
                 <CarouselItem key={item.id} className="h-full">
                   <Card className="w-full h-full border-0 bg-black rounded-none">
-                    <CardContent className="relative flex aspect-9/16 h-full items-center justify-center p-0">
-                      {renderContent(item, index)}
+                    <CardContent className="relative flex h-full items-center justify-center p-0 aspect-video">
+                      <div className='relative w-full h-full aspect-[9/16]'>
+                        {renderContent(item, index)}
+                      </div>
                     </CardContent>
                   </Card>
                 </CarouselItem>
