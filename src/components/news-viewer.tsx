@@ -8,8 +8,7 @@ import type { NewsItem } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { Skeleton } from './ui/skeleton';
-import { Button } from './ui/button';
-import { Maximize } from 'lucide-react';
+import { NewsTicker } from './news-ticker';
 
 const NEWS_CACHE_KEY = 'noticias_italia_cache';
 
@@ -69,7 +68,6 @@ export default function NewsViewer() {
         window.addEventListener('online', handleOnlineStatus);
         window.addEventListener('offline', handleOnlineStatus);
         handleOnlineStatus();
-
         return () => {
           window.removeEventListener('online', handleOnlineStatus);
           window.removeEventListener('offline', handleOnlineStatus);
@@ -182,28 +180,31 @@ export default function NewsViewer() {
   };
 
   return (
-    <div className="relative h-full w-full flex items-center justify-center">
-      {loading ? (
-          <Skeleton className="w-full h-full bg-gray-800" />
-      ) : news.length === 0 ? (
-        <div className="flex items-center justify-center h-full w-full bg-gray-900">
-          <p className="text-white text-2xl font-headline">No hay noticias activas.</p>
-        </div>
-      ) : (
-        <Carousel className="w-full h-full" setApi={setApi} opts={{ loop: true }}>
-          <CarouselContent className="h-full">
-            {news.map((item, index) => (
-              <CarouselItem key={item.id} className="h-full">
-                <Card className="w-full h-full border-0 bg-black rounded-none">
-                  <CardContent className="relative flex h-full items-center justify-center p-0">
-                    {renderContent(item, index)}
-                  </CardContent>
-                </Card>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-        </Carousel>
-      )}
+    <div className="flex justify-center items-center h-screen w-screen bg-black">
+      <div className="relative w-full max-w-[calc(100vh*(9/16))] h-full aspect-9/16">
+        {loading ? (
+           <Skeleton className="w-full h-full bg-gray-800" />
+        ) : news.length === 0 ? (
+          <div className="flex items-center justify-center h-full w-full bg-gray-900">
+            <p className="text-white text-2xl font-headline">No hay noticias activas.</p>
+          </div>
+        ) : (
+          <Carousel className="w-full h-full" setApi={setApi} opts={{ loop: true }}>
+            <CarouselContent className="h-full">
+              {news.map((item, index) => (
+                <CarouselItem key={item.id} className="h-full">
+                  <Card className="w-full h-full border-0 bg-black rounded-none">
+                    <CardContent className="relative flex aspect-9/16 h-full items-center justify-center p-0">
+                      {renderContent(item, index)}
+                    </CardContent>
+                  </Card>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+          </Carousel>
+        )}
+        <NewsTicker />
+      </div>
     </div>
   );
 }

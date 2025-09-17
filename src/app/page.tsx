@@ -1,13 +1,11 @@
 import NewsViewer from "@/components/news-viewer";
-import { NewsTicker } from "@/components/news-ticker";
 
 export default function Home() {
   return (
-    <main className="bg-black flex h-screen w-screen overflow-hidden">
-      <div className="flex-grow h-full w-full">
+    <main className="bg-black overflow-hidden">
+      <div className="h-screen w-screen origin-center rotate-90 scale-[1.77]">
         <NewsViewer />
       </div>
-      <NewsTicker />
     </main>
   );
 }
