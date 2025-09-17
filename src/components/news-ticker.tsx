@@ -28,7 +28,7 @@ export function NewsTicker() {
     return null;
   }
   
-  const tickerContent = items.map(item => `🚨 ${item.text}`).join(" ••• ");
+  const tickerContent = items.map(item => `${item.text}`).join(" ••• ");
 
   return (
     <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-r from-red-600 via-red-700 to-red-600 text-white overflow-hidden whitespace-nowrap z-10 flex items-center shadow-lg border-t-2 border-red-400/50 border-b-2 border-red-800/50">
