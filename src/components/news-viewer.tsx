@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -9,6 +10,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { Skeleton } from './ui/skeleton';
 import { NewsTicker } from './news-ticker';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 const NEWS_CACHE_KEY = 'noticias_italia_cache';
 
@@ -92,6 +95,13 @@ export default function NewsViewer() {
       setLoading(false);
     }, (error) => {
       console.error("Error al obtener noticias:", error);
+      if (error.code === 'permission-denied') {
+        const permissionError = new FirestorePermissionError({
+            path: 'news',
+            operation: 'list'
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      }
       const cachedNews = localStorage.getItem(NEWS_CACHE_KEY);
       if (cachedNews) setNews(JSON.parse(cachedNews));
       setLoading(false);

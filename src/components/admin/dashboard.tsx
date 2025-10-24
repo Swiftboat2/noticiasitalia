@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -56,6 +57,8 @@ import { useRouter } from "next/navigation";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { FirestorePermissionError } from "@/firebase/errors";
+import { errorEmitter } from "@/firebase/error-emitter";
 
 interface DashboardProps {
   initialNews: NewsItem[];
@@ -102,13 +105,20 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
   const { toast } = useToast();
   const router = useRouter();
   
-  // Funciones de manejo de errores mejoradas
   const handleFirestoreError = useCallback((error: any, context: string) => {
     console.error(`Error en ${context}:`, error);
+     // Emit contextual error for Firestore permission issues
+    if (error.code === 'permission-denied') {
+        const permissionError = new FirestorePermissionError({
+            path: error.customData?.path || context, // best-effort path
+            operation: 'list' // Listeners are 'list' operations
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    }
     toast({ 
       variant: "destructive", 
       title: "Error de Sincronización", 
-      description: `No se pudieron obtener las actualizaciones de ${context}.` 
+      description: `No se pudieron obtener las actualizaciones de ${context}. Compruebe sus permisos.` 
     });
   }, [toast]);
 
@@ -117,44 +127,24 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
     let tickerUnsubscribe: () => void;
 
     try {
-      // Suscripción a noticias
       const newsQuery = query(collection(db, "news"), orderBy("createdAt", "desc"));
       newsUnsubscribe = onSnapshot(
         newsQuery, 
         (snapshot) => {
-          try {
-            const newsData = snapshot.docs.map(serializeData) as NewsItem[];
-            console.log('Noticias actualizadas:', newsData.length, 'items');
-            
-            // Log de duraciones para debug
-            newsData.forEach((item, index) => {
-              console.log(`Noticia ${index}: duración = ${item.duration}s, tipo = ${item.type}, activa = ${item.active}`);
-            });
-            
-            setNews(newsData);
-          } catch (error) {
-            console.error('Error al procesar datos de noticias:', error);
-            handleFirestoreError(error, 'noticias');
-          }
+          const newsData = snapshot.docs.map(serializeData) as NewsItem[];
+          setNews(newsData);
         }, 
-        (error) => handleFirestoreError(error, 'noticias')
+        (error) => handleFirestoreError(error, 'news')
       );
 
-      // Suscripción a mensajes del ticker
       const tickerQuery = query(collection(db, "tickerMessages"), orderBy("createdAt", "desc"));
       tickerUnsubscribe = onSnapshot(
         tickerQuery, 
         (snapshot) => {
-          try {
-            const tickerData = snapshot.docs.map(serializeData) as TickerMessage[];
-            console.log('Mensajes de ticker actualizados:', tickerData.length, 'items');
-            setTickerMessages(tickerData);
-          } catch (error) {
-            console.error('Error al procesar datos del ticker:', error);
-            handleFirestoreError(error, 'ticker');
-          }
+          const tickerData = snapshot.docs.map(serializeData) as TickerMessage[];
+          setTickerMessages(tickerData);
         }, 
-        (error) => handleFirestoreError(error, 'ticker')
+        (error) => handleFirestoreError(error, 'tickerMessages')
       );
 
     } catch (error) {
@@ -180,18 +170,13 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
 
   const handleDeleteNews = useCallback(async (id: string) => {
     setIsLoading(true);
-    try {
-      const result = await deleteNewsItem(id);
-      if (result.success) {
-        toast({ title: "Éxito", description: "Noticia eliminada." });
-      } else {
-        toast({ variant: "destructive", title: "Error", description: result.error });
-      }
-    } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "Error inesperado al eliminar la noticia." });
-    } finally {
-      setIsLoading(false);
+    const result = await deleteNewsItem(id);
+    if (result.success) {
+      toast({ title: "Éxito", description: "Noticia eliminada." });
+    } else {
+      toast({ variant: "destructive", title: "Error", description: result.error });
     }
+    setIsLoading(false);
   }, [toast]);
   
   const handleEditTicker = useCallback((item: TickerMessage) => {
@@ -201,32 +186,24 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
 
   const handleDeleteTicker = useCallback(async (id: string) => {
     setIsLoading(true);
-    try {
-      const result = await deleteTickerMessage(id);
-      if (result.success) {
-        toast({ title: "Éxito", description: "Mensaje del ticker eliminado." });
-      } else {
-        toast({ variant: "destructive", title: "Error", description: result.error });
-      }
-    } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "Error inesperado al eliminar el mensaje." });
-    } finally {
-      setIsLoading(false);
+    const result = await deleteTickerMessage(id);
+    if (result.success) {
+      toast({ title: "Éxito", description: "Mensaje del ticker eliminado." });
+    } else {
+      toast({ variant: "destructive", title: "Error", description: result.error });
     }
+    setIsLoading(false);
   }, [toast]);
 
   const handleToggleActive = useCallback(async (item: NewsItem) => {
     setIsLoading(true);
-    try {
-      const result = await updateNewsItem(item.id, { active: !item.active });
-      if (!result.success) {
-        toast({ variant: "destructive", title: "Error", description: result.error || "Error al actualizar el estado." });
-      }
-    } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "Error inesperado al actualizar." });
-    } finally {
-      setIsLoading(false);
+    const result = await updateNewsItem(item.id, { active: !item.active });
+    if (result.success) {
+        // Optimistic update handled by onSnapshot listener
+    } else {
+      toast({ variant: "destructive", title: "Error", description: result.error || "Error al actualizar el estado." });
     }
+    setIsLoading(false);
   }, [toast]);
 
   const handleLogout = useCallback(async () => {

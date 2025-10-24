@@ -6,6 +6,8 @@ import { addDoc, collection, getDoc, deleteDoc, doc, serverTimestamp, updateDoc 
 import { z } from "zod";
 import { db } from "@/lib/firebase/config";
 import type { NewsItem, TickerMessage } from "@/types";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 // Schema for News Items
 const NewsSchema = z.object({
@@ -40,7 +42,7 @@ export async function addNewsItem(data: unknown) {
     return { error: validatedFields.error.flatten().formErrors.join(', ') };
   }
   
-  const newsData = validatedFields.data;
+  let newsData = validatedFields.data;
 
   // If the item is an image and the URL is external, convert it to a data URI
   if (newsData.type === 'image' && isHttpUrl(newsData.url)) {
@@ -52,14 +54,28 @@ export async function addNewsItem(data: unknown) {
       }
   }
 
+  const newsCollectionRef = collection(db, "news");
+  
   try {
-    await addDoc(collection(db, "news"), {
+    await addDoc(newsCollectionRef, {
       ...newsData,
       createdAt: serverTimestamp(),
+    }).catch(serverError => {
+       const permissionError = new FirestorePermissionError({
+        path: newsCollectionRef.path,
+        operation: 'create',
+        requestResourceData: newsData,
+       });
+       errorEmitter.emit('permission-error', permissionError);
+       throw permissionError; // Re-throw to inform the caller
     });
     revalidatePath("/admin/dashboard");
+    revalidatePath("/");
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof FirestorePermissionError) {
+        return { error: "Permisos insuficientes para crear la noticia." };
+    }
     return { error: "No se pudo crear la noticia." };
   }
 }
@@ -70,7 +86,15 @@ export async function updateNewsItem(id: string, data: Partial<Omit<NewsItem, 'i
 
   // If the URL is being updated for an image, convert it to a data URI if it's an http url
   if (updateData.url && (data.type === 'image' || !data.type)) {
-    const docSnap = await getDoc(newsRef);
+    const docSnap = await getDoc(newsRef).catch(serverError => {
+        const permissionError = new FirestorePermissionError({ path: newsRef.path, operation: 'get' });
+        errorEmitter.emit('permission-error', permissionError);
+        throw permissionError;
+    });
+
+    if(!docSnap.exists()){
+        return { error: "La noticia que intentas actualizar no existe." };
+    }
     const currentData = docSnap.data();
 
     // Determine if the item is an image type
@@ -87,21 +111,41 @@ export async function updateNewsItem(id: string, data: Partial<Omit<NewsItem, 'i
   }
 
   try {
-    await updateDoc(newsRef, updateData);
+    await updateDoc(newsRef, updateData).catch(serverError => {
+        const permissionError = new FirestorePermissionError({
+            path: newsRef.path,
+            operation: 'update',
+            requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw permissionError;
+    });
     revalidatePath("/admin/dashboard");
     revalidatePath("/");
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
+     if (error instanceof FirestorePermissionError) {
+        return { error: "Permisos insuficientes para actualizar la noticia." };
+    }
     return { error: "No se pudo actualizar la noticia." };
   }
 }
 
 export async function deleteNewsItem(id: string) {
+  const newsRef = doc(db, "news", id);
   try {
-    await deleteDoc(doc(db, "news", id));
+    await deleteDoc(newsRef).catch(serverError => {
+        const permissionError = new FirestorePermissionError({ path: newsRef.path, operation: 'delete' });
+        errorEmitter.emit('permission-error', permissionError);
+        throw permissionError;
+    });
     revalidatePath("/admin/dashboard");
+    revalidatePath("/");
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof FirestorePermissionError) {
+        return { error: "Permisos insuficientes para eliminar la noticia." };
+    }
     return { error: "No se pudo eliminar la noticia." };
   }
 }
@@ -114,15 +158,29 @@ export async function addTickerMessage(data: unknown) {
   if (!validatedFields.success) {
     return { error: validatedFields.error.flatten().formErrors.join(', ') };
   }
+  
+  const tickerCollectionRef = collection(db, "tickerMessages");
 
   try {
-    await addDoc(collection(db, "tickerMessages"), {
+    await addDoc(tickerCollectionRef, {
       ...validatedFields.data,
       createdAt: serverTimestamp(),
+    }).catch(serverError => {
+       const permissionError = new FirestorePermissionError({
+        path: tickerCollectionRef.path,
+        operation: 'create',
+        requestResourceData: validatedFields.data,
+       });
+       errorEmitter.emit('permission-error', permissionError);
+       throw permissionError;
     });
     revalidatePath("/admin/dashboard");
+    revalidatePath("/");
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
+     if (error instanceof FirestorePermissionError) {
+        return { error: "Permisos insuficientes para crear el mensaje." };
+    }
     return { error: "No se pudo crear el mensaje del ticker." };
   }
 }
@@ -132,23 +190,47 @@ export async function updateTickerMessage(id: string, data: Partial<Omit<TickerM
     if (!validatedFields.success) {
         return { error: validatedFields.error.flatten().formErrors.join(', ') };
     }
+  
+  const tickerRef = doc(db, "tickerMessages", id);
   try {
-    const tickerRef = doc(db, "tickerMessages", id);
-    await updateDoc(tickerRef, validatedFields.data);
+    await updateDoc(tickerRef, validatedFields.data).catch(serverError => {
+        const permissionError = new FirestorePermissionError({
+            path: tickerRef.path,
+            operation: 'update',
+            requestResourceData: validatedFields.data,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw permissionError;
+    });
     revalidatePath("/admin/dashboard");
     revalidatePath("/");
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof FirestorePermissionError) {
+        return { error: "Permisos insuficientes para actualizar el mensaje." };
+    }
     return { error: "No se pudo actualizar el mensaje del ticker." };
   }
 }
 
 export async function deleteTickerMessage(id: string) {
+  const tickerRef = doc(db, "tickerMessages", id);
   try {
-    await deleteDoc(doc(db, "tickerMessages", id));
+    await deleteDoc(tickerRef).catch(serverError => {
+        const permissionError = new FirestorePermissionError({
+            path: tickerRef.path,
+            operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw permissionError;
+    });
     revalidatePath("/admin/dashboard");
+    revalidatePath("/");
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof FirestorePermissionError) {
+        return { error: "Permisos insuficientes para eliminar el mensaje." };
+    }
     return { error: "No se pudo eliminar el mensaje del ticker." };
   }
 }
@@ -174,4 +256,3 @@ export async function fetchImageAsDataUrl(url: string): Promise<{ success: boole
     return { success: false, error: error.message || 'Ocurrió un error desconocido al obtener la imagen.' };
   }
 }
-
