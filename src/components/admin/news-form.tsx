@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,7 +25,10 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import type { NewsItem } from "@/types";
 import { useEffect } from "react";
-import { addNewsItem, updateNewsItem } from "@/lib/actions";
+import { collection, doc, serverTimestamp } from "firebase/firestore";
+import { useFirestore, addDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase";
+import { fetchImageAsDataUrl } from "@/lib/actions";
+
 
 interface NewsFormProps {
   newsItem?: NewsItem | null;
@@ -40,6 +44,8 @@ const formSchema = z.object({
 
 export function NewsForm({ newsItem, onFinished }: NewsFormProps) {
   const { toast } = useToast();
+  const firestore = useFirestore();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -70,20 +76,43 @@ export function NewsForm({ newsItem, onFinished }: NewsFormProps) {
   }, [newsItem, form]);
 
   const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
-    const result = newsItem
-      ? await updateNewsItem(newsItem.id, values)
-      : await addNewsItem(values);
+    let finalValues = { ...values };
 
-    if (result.success) {
-      toast({ title: "Éxito", description: `Noticia ${newsItem ? 'actualizada' : 'creada'}.` });
-      onFinished();
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: result.error || "Ha ocurrido un error desconocido.",
-      });
+    const isHttpUrl = (string: string): boolean => {
+      try {
+        const url = new URL(string);
+        return url.protocol === "http:" || url.protocol === "https:";
+      } catch (_) {
+        return false;
+      }
+    };
+    
+    // If the item is an image and the URL is external, convert it to a data URI
+    if (finalValues.type === 'image' && isHttpUrl(finalValues.url)) {
+        const imageResult = await fetchImageAsDataUrl(finalValues.url);
+        if (imageResult.success && imageResult.dataUrl) {
+            finalValues.url = imageResult.dataUrl;
+        } else {
+            toast({ variant: "destructive", title: "Error", description: `No se pudo procesar la URL de la imagen: ${imageResult.error}` });
+            return;
+        }
     }
+
+    if (newsItem) {
+      // Update existing item
+      const newsRef = doc(firestore, "news", newsItem.id);
+      updateDocumentNonBlocking(newsRef, finalValues);
+      toast({ title: "Éxito", description: `Noticia actualizada.` });
+    } else {
+      // Add new item
+      const newsCollectionRef = collection(firestore, "news");
+      addDocumentNonBlocking(newsCollectionRef, {
+        ...finalValues,
+        createdAt: serverTimestamp(),
+      });
+      toast({ title: "Éxito", description: `Noticia creada.` });
+    }
+    onFinished();
   };
 
   return (

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,8 +16,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { TickerMessage } from "@/types";
-import { addTickerMessage, updateTickerMessage } from "@/lib/actions";
 import { useEffect } from "react";
+import { collection, doc, serverTimestamp } from "firebase/firestore";
+import { useFirestore, addDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase";
 
 interface TickerFormProps {
   tickerMessage?: TickerMessage | null;
@@ -29,6 +31,8 @@ const formSchema = z.object({
 
 export function TickerForm({ tickerMessage, onFinished }: TickerFormProps) {
   const { toast } = useToast();
+  const firestore = useFirestore();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -47,20 +51,19 @@ export function TickerForm({ tickerMessage, onFinished }: TickerFormProps) {
 
 
   const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
-    const result = tickerMessage
-      ? await updateTickerMessage(tickerMessage.id, values)
-      : await addTickerMessage(values);
-
-    if (result.success) {
-      toast({ title: "Éxito", description: `Mensaje del ticker ${tickerMessage ? 'actualizado' : 'creado'}.` });
-      onFinished();
+    if (tickerMessage) {
+      const tickerRef = doc(firestore, "tickerMessages", tickerMessage.id);
+      updateDocumentNonBlocking(tickerRef, values);
+      toast({ title: "Éxito", description: "Mensaje del ticker actualizado." });
     } else {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: result.error || "Ha ocurrido un error desconocido.",
+      const tickerCollectionRef = collection(firestore, "tickerMessages");
+      addDocumentNonBlocking(tickerCollectionRef, {
+        ...values,
+        createdAt: serverTimestamp(),
       });
+      toast({ title: "Éxito", description: "Mensaje del ticker creado." });
     }
+    onFinished();
   };
 
   return (

@@ -6,8 +6,12 @@ import { addDoc, collection, getDoc, deleteDoc, doc, serverTimestamp, updateDoc 
 import { z } from "zod";
 import { db } from "@/lib/firebase/config";
 import type { NewsItem, TickerMessage } from "@/types";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
+import { 
+  addDocumentNonBlocking,
+  updateDocumentNonBlocking,
+  deleteDocumentNonBlocking,
+  setDocumentNonBlocking
+} from "@/firebase/non-blocking-updates";
 
 // Schema for News Items
 const NewsSchema = z.object({
@@ -57,7 +61,7 @@ export async function addNewsItem(data: unknown) {
   const newsCollectionRef = collection(db, "news");
   
   try {
-    await addDoc(newsCollectionRef, {
+    addDocumentNonBlocking(newsCollectionRef, {
       ...newsData,
       createdAt: serverTimestamp(),
     });
@@ -65,11 +69,6 @@ export async function addNewsItem(data: unknown) {
     revalidatePath("/");
     return { success: true };
   } catch (error: any) {
-    // This is a server action, we can't rely on the client-side emitter.
-    // We will return a specific error message.
-    if (error.code === 'permission-denied') {
-        return { error: "Permisos insuficientes para crear la noticia. Revisa las reglas de Firestore." };
-    }
     return { error: "No se pudo crear la noticia." };
   }
 }
@@ -107,14 +106,11 @@ export async function updateNewsItem(id: string, data: Partial<Omit<NewsItem, 'i
   }
 
   try {
-    await updateDoc(newsRef, updateData);
+    updateDocumentNonBlocking(newsRef, updateData);
     revalidatePath("/admin/dashboard");
     revalidatePath("/");
     return { success: true };
   } catch (error: any) {
-     if (error.code === 'permission-denied') {
-        return { error: "Permisos insuficientes para actualizar la noticia. Revisa las reglas de Firestore." };
-    }
     return { error: "No se pudo actualizar la noticia." };
   }
 }
@@ -122,14 +118,11 @@ export async function updateNewsItem(id: string, data: Partial<Omit<NewsItem, 'i
 export async function deleteNewsItem(id: string) {
   const newsRef = doc(db, "news", id);
   try {
-    await deleteDoc(newsRef);
+    deleteDocumentNonBlocking(newsRef);
     revalidatePath("/admin/dashboard");
     revalidatePath("/");
     return { success: true };
   } catch (error: any) {
-    if (error.code === 'permission-denied') {
-        return { error: "Permisos insuficientes para eliminar la noticia. Revisa las reglas de Firestore." };
-    }
     return { error: "No se pudo eliminar la noticia." };
   }
 }
@@ -146,7 +139,7 @@ export async function addTickerMessage(data: unknown) {
   const tickerCollectionRef = collection(db, "tickerMessages");
 
   try {
-    await addDoc(tickerCollectionRef, {
+    addDocumentNonBlocking(tickerCollectionRef, {
       ...validatedFields.data,
       createdAt: serverTimestamp(),
     });
@@ -154,9 +147,6 @@ export async function addTickerMessage(data: unknown) {
     revalidatePath("/");
     return { success: true };
   } catch (error: any) {
-     if (error.code === 'permission-denied') {
-        return { error: "Permisos insuficientes para crear el mensaje. Revisa las reglas de Firestore." };
-    }
     return { error: "No se pudo crear el mensaje del ticker." };
   }
 }
@@ -169,14 +159,11 @@ export async function updateTickerMessage(id: string, data: Partial<Omit<TickerM
   
   const tickerRef = doc(db, "tickerMessages", id);
   try {
-    await updateDoc(tickerRef, validatedFields.data);
+    updateDocumentNonBlocking(tickerRef, validatedFields.data);
     revalidatePath("/admin/dashboard");
     revalidatePath("/");
     return { success: true };
   } catch (error: any) {
-    if (error.code === 'permission-denied') {
-        return { error: "Permisos insuficientes para actualizar el mensaje. Revisa las reglas de Firestore." };
-    }
     return { error: "No se pudo actualizar el mensaje del ticker." };
   }
 }
@@ -184,14 +171,11 @@ export async function updateTickerMessage(id: string, data: Partial<Omit<TickerM
 export async function deleteTickerMessage(id: string) {
   const tickerRef = doc(db, "tickerMessages", id);
   try {
-    await deleteDoc(tickerRef);
+    deleteDocumentNonBlocking(tickerRef);
     revalidatePath("/admin/dashboard");
     revalidatePath("/");
     return { success: true };
   } catch (error: any) {
-    if (error.code === 'permission-denied') {
-        return { error: "Permisos insuficientes para eliminar el mensaje. Revisa las reglas de Firestore." };
-    }
     return { error: "No se pudo eliminar el mensaje del ticker." };
   }
 }

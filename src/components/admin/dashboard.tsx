@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -33,11 +32,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import {
-  deleteNewsItem,
-  updateNewsItem,
-  deleteTickerMessage,
-} from "@/lib/actions";
 import { NewsForm } from "./news-form";
 import { TickerForm } from "./ticker-form";
 import type { NewsItem, TickerMessage } from "@/types";
@@ -55,44 +49,21 @@ import {
   Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
+import {
+  collection,
+  orderBy,
+  query,
+  doc,
+} from "firebase/firestore";
+import { useCollection, useAuth, useFirestore } from "@/firebase";
+import {
+  updateDocumentNonBlocking,
+  deleteDocumentNonBlocking,
+} from "@/firebase";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FirestorePermissionError } from "@/firebase/errors";
-import { errorEmitter } from "@/firebase/error-emitter";
+import { signOut } from "firebase/auth";
 
-interface DashboardProps {
-  initialNews: NewsItem[];
-  initialTickerMessages: TickerMessage[];
-}
-
-// Helper to serialize Firestore Timestamps
-const serializeData = (doc: any) => {
-  const data = doc.data();
-  const id = doc.id;
-  const serializedData: { [key: string]: any } = { id };
-  
-  for (const key in data) {
-    if (data[key] && typeof data[key].toDate === 'function') {
-      serializedData[key] = data[key].toDate().toISOString();
-    } else if (data[key] !== undefined) {
-      serializedData[key] = data[key];
-    }
-  }
-  
-  if ('duration' in serializedData) {
-    if (!serializedData.duration || isNaN(serializedData.duration) || serializedData.duration <= 0) {
-      serializedData.duration = 10;
-    }
-  }
-  
-  return serializedData;
-};
-
-export default function Dashboard({ initialNews, initialTickerMessages }: DashboardProps) {
-  const [news, setNews] = useState<NewsItem[]>(initialNews);
-  const [tickerMessages, setTickerMessages] = useState<TickerMessage[]>(initialTickerMessages);
-  
+export default function Dashboard() {
   const [isNewsFormOpen, setIsNewsFormOpen] = useState(false);
   const [isTickerFormOpen, setIsTickerFormOpen] = useState(false);
   
@@ -100,57 +71,21 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
   const [editingTicker, setEditingTicker] = useState<TickerMessage | null>(null);
   
   const [isLoading, setIsLoading] = useState(false);
-  const [isDataLoading, setIsDataLoading] = useState(true);
 
   const { toast } = useToast();
   const router = useRouter();
+  const auth = useAuth();
+  const firestore = useFirestore();
   
-  useEffect(() => {
-    setIsDataLoading(true);
+  const { data: news, isLoading: isNewsLoading } = useCollection<NewsItem>(
+    query(collection(firestore, "news"), orderBy("createdAt", "desc"))
+  );
 
-    const newsQuery = query(collection(db, "news"), orderBy("createdAt", "desc"));
-    const newsListener = onSnapshot(
-      newsQuery,
-      (snapshot) => {
-        const newsData = snapshot.docs.map(serializeData) as NewsItem[];
-        setNews(newsData);
-        setIsDataLoading(false);
-      },
-      (error) => {
-        if (error.code === 'permission-denied') {
-            const permissionError = new FirestorePermissionError({
-                path: 'news',
-                operation: 'list'
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        }
-        setIsDataLoading(false);
-      }
-    );
+  const { data: tickerMessages, isLoading: isTickerLoading } = useCollection<TickerMessage>(
+    query(collection(firestore, "tickerMessages"), orderBy("createdAt", "desc"))
+  );
 
-    const tickerQuery = query(collection(db, "tickerMessages"), orderBy("createdAt", "desc"));
-    const tickerListener = onSnapshot(
-      tickerQuery,
-      (snapshot) => {
-        const tickerData = snapshot.docs.map(serializeData) as TickerMessage[];
-        setTickerMessages(tickerData);
-      },
-      (error) => {
-        if (error.code === 'permission-denied') {
-            const permissionError = new FirestorePermissionError({
-                path: 'tickerMessages',
-                operation: 'list'
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        }
-      }
-    );
-
-    return () => {
-      newsListener();
-      tickerListener();
-    };
-  }, []);
+  const isDataLoading = isNewsLoading || isTickerLoading;
 
   const handleEditNews = useCallback((item: NewsItem) => {
     setEditingNews(item);
@@ -159,14 +94,11 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
 
   const handleDeleteNews = useCallback(async (id: string) => {
     setIsLoading(true);
-    const result = await deleteNewsItem(id);
-    if (result.success) {
-      toast({ title: "Éxito", description: "Noticia eliminada." });
-    } else {
-      toast({ variant: "destructive", title: "Error", description: result.error });
-    }
+    const newsRef = doc(firestore, "news", id);
+    deleteDocumentNonBlocking(newsRef);
+    toast({ title: "Éxito", description: "Noticia eliminada." });
     setIsLoading(false);
-  }, [toast]);
+  }, [firestore, toast]);
   
   const handleEditTicker = useCallback((item: TickerMessage) => {
     setEditingTicker(item);
@@ -175,33 +107,33 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
 
   const handleDeleteTicker = useCallback(async (id: string) => {
     setIsLoading(true);
-    const result = await deleteTickerMessage(id);
-    if (result.success) {
-      toast({ title: "Éxito", description: "Mensaje del ticker eliminado." });
-    } else {
-      toast({ variant: "destructive", title: "Error", description: result.error });
-    }
+    const tickerRef = doc(firestore, "tickerMessages", id);
+    deleteDocumentNonBlocking(tickerRef);
+    toast({ title: "Éxito", description: "Mensaje del ticker eliminado." });
     setIsLoading(false);
-  }, [toast]);
+  }, [firestore, toast]);
 
   const handleToggleActive = useCallback(async (item: NewsItem) => {
     setIsLoading(true);
-    const result = await updateNewsItem(item.id, { active: !item.active });
-    if (!result.success) {
-      toast({ variant: "destructive", title: "Error", description: result.error || "Error al actualizar el estado." });
-    }
+    const newsRef = doc(firestore, "news", item.id);
+    updateDocumentNonBlocking(newsRef, { active: !item.active });
     setIsLoading(false);
-  }, [toast]);
+  }, [firestore]);
 
   const handleLogout = useCallback(async () => {
-    localStorage.removeItem('isAuthenticated');
+    await signOut(auth);
     router.push("/admin/login");
-  }, [router]);
+  }, [auth, router]);
 
-  const formatDate = useCallback((dateString: string) => {
+  const formatDate = useCallback((dateString: string | { toDate: () => Date }) => {
     try {
       if (!dateString) return 'Fecha no disponible';
-      return format(parseISO(dateString), "PPpp", { locale: es });
+      const date = typeof dateString === 'string' 
+        ? parseISO(dateString) 
+        : dateString && typeof (dateString as any).toDate === 'function'
+        ? (dateString as any).toDate()
+        : new Date(dateString as any);
+      return format(date, "PPpp", { locale: es });
     } catch (e) {
       console.error('Error al formatear fecha:', dateString, e);
       return 'Fecha inválida';
@@ -245,7 +177,7 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
           <h2 className="text-2xl font-headline flex items-center gap-2">
             <Newspaper className="h-6 w-6" />
             Gestor de Noticias
-            {!isDataLoading && news.length > 0 && (
+            {!isDataLoading && news && news.length > 0 && (
               <Badge variant="secondary" className="ml-2">{news.length}</Badge>
             )}
           </h2>
@@ -303,7 +235,7 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
                     </div>
                   </TableCell>
                 </TableRow>
-              ) : news.length > 0 ? (
+              ) : news && news.length > 0 ? (
                 news.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium max-w-xs truncate">
@@ -385,7 +317,7 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
           <h2 className="text-2xl font-headline flex items-center gap-2">
             <MessageSquare className="h-6 w-6"/>
             Gestor del Ticker de Noticias Urgentes
-            {!isDataLoading && tickerMessages.length > 0 && (
+            {!isDataLoading && tickerMessages && tickerMessages.length > 0 && (
               <Badge variant="secondary" className="ml-2">{tickerMessages.length}</Badge>
             )}
           </h2>
@@ -433,11 +365,12 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
                  <TableRow>
                     <TableCell colSpan={3} className="h-24 text-center">
                         <div className="flex justify-center items-center">
-                            {/* Reuse loader if news is also loading */}
+                           <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                           <span>Cargando mensajes...</span>
                         </div>
                     </TableCell>
                 </TableRow>
-              ) : tickerMessages.length > 0 ? (
+              ) : tickerMessages && tickerMessages.length > 0 ? (
                 tickerMessages.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.text}</TableCell>

@@ -10,8 +10,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { Skeleton } from './ui/skeleton';
 import { NewsTicker } from './news-ticker';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const NEWS_CACHE_KEY = 'noticias_italia_cache';
 
