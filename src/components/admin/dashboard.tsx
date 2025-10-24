@@ -105,64 +105,54 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
   const { toast } = useToast();
   const router = useRouter();
   
-  const handleFirestoreError = useCallback((error: any, context: string) => {
-    console.error(`Error en ${context}:`, error);
-     if (error.code === 'permission-denied') {
-        const permissionError = new FirestorePermissionError({
-            path: context,
-            operation: 'list'
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    }
-    toast({ 
-      variant: "destructive", 
-      title: "Error de Sincronización", 
-      description: `No se pudieron obtener las actualizaciones de ${context}. Compruebe sus permisos y la conexión.` 
-    });
-  }, [toast]);
-
   useEffect(() => {
     setIsDataLoading(true);
-    let newsUnsubscribed = false;
-    let tickerUnsubscribed = false;
 
     const newsQuery = query(collection(db, "news"), orderBy("createdAt", "desc"));
     const newsListener = onSnapshot(
-      newsQuery, 
+      newsQuery,
       (snapshot) => {
-        if (newsUnsubscribed) return;
         const newsData = snapshot.docs.map(serializeData) as NewsItem[];
         setNews(newsData);
-        if (isDataLoading) setIsDataLoading(false);
-      }, 
+        setIsDataLoading(false);
+      },
       (error) => {
-        if (newsUnsubscribed) return;
-        handleFirestoreError(error, 'news');
-        if (isDataLoading) setIsDataLoading(false);
+        console.error("Error fetching news:", error);
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: 'news',
+                operation: 'list'
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+        setIsDataLoading(false);
       }
     );
 
     const tickerQuery = query(collection(db, "tickerMessages"), orderBy("createdAt", "desc"));
     const tickerListener = onSnapshot(
-      tickerQuery, 
+      tickerQuery,
       (snapshot) => {
-        if (tickerUnsubscribed) return;
         const tickerData = snapshot.docs.map(serializeData) as TickerMessage[];
         setTickerMessages(tickerData);
-      }, 
+      },
       (error) => {
-        if (tickerUnsubscribed) return;
-        handleFirestoreError(error, 'tickerMessages');
+        console.error("Error fetching ticker messages:", error);
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: 'tickerMessages',
+                operation: 'list'
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
       }
     );
 
     return () => {
-      newsUnsubscribed = true;
-      tickerUnsubscribed = true;
       newsListener();
       tickerListener();
     };
-  }, [handleFirestoreError, toast, isDataLoading]);
+  }, []);
 
   const handleEditNews = useCallback((item: NewsItem) => {
     setEditingNews(item);

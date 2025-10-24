@@ -16,7 +16,17 @@ export function NewsTicker() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const urgentItems = snapshot.docs.map(doc => {
           if (doc) {
-            return { id: doc.id, ...doc.data() } as TickerMessage;
+            const data = doc.data();
+            const id = doc.id;
+            const serializedData: { [key: string]: any } = { id };
+            for (const key in data) {
+              if (data[key] && typeof data[key].toDate === 'function') {
+                serializedData[key] = data[key].toDate().toISOString();
+              } else if (data[key] !== undefined) {
+                serializedData[key] = data[key];
+              }
+            }
+            return serializedData as TickerMessage;
           }
           return null;
       }).filter((item): item is TickerMessage => item !== null);
