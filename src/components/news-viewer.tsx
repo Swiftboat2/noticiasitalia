@@ -180,8 +180,8 @@ export default function NewsViewer() {
   };
 
   return (
-    <div className="flex justify-center items-center h-screen w-screen bg-black">
-      <div className="relative w-full max-w-[calc(100vh*(9/16))] h-full aspect-9/16">
+   <div className="flex justify-center items-center h-full w-full bg-black">
+      <div className="relative w-full h-full">
         {loading ? (
            <Skeleton className="w-full h-full bg-gray-800" />
         ) : news.length === 0 ? (
@@ -194,7 +194,7 @@ export default function NewsViewer() {
               {news.map((item, index) => (
                 <CarouselItem key={item.id} className="h-full">
                   <Card className="w-full h-full border-0 bg-black rounded-none">
-                    <CardContent className="relative flex aspect-9/16 h-full items-center justify-center p-0">
+                    <CardContent className="relative flex h-full items-center justify-center p-0">
                       {renderContent(item, index)}
                     </CardContent>
                   </Card>
