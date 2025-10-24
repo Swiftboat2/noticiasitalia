@@ -1,13 +1,14 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow public read and admin write for news
+    // Allow read and write access to the news collection
     match /news/{document=**} {
       allow read, write: if true;
     }
 
-    // Allow public read and admin write for ticker messages
+    // Allow read and write access to the ticker messages collection
     match /tickerMessages/{document=**} {
       allow read, write: if true;
     }
