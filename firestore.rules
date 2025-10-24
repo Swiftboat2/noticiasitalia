@@ -2,7 +2,8 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow all read and write operations for development
+    // Regla temporal para desarrollo: permite leer y escribir en toda la base de datos.
+    // Esto es inseguro para producción y debería ser reemplazado por reglas más específicas.
     match /{document=**} {
       allow read, write: if true;
     }
