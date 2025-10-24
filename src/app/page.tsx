@@ -16,7 +16,7 @@ export default function Home() {
   }, []);
 
   return (
-    <main ref={mainRef} className="bg-black overflow-hidden relative">
+     <main ref={mainRef} className="bg-black overflow-hidden relative h-screen w-screen">
        <button 
         onClick={handleFullscreen}
         className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/30 text-white opacity-50 hover:opacity-100 transition-opacity"
@@ -24,9 +24,7 @@ export default function Home() {
       >
         <Maximize className="w-6 h-6" />
       </button>
-      <div className="h-screen w-screen origin-center rotate-90 scale-[1.77]">
         <NewsViewer />
-      </div>
     </main>
   );
 }
