@@ -60,21 +60,15 @@ export async function addNewsItem(data: unknown) {
     await addDoc(newsCollectionRef, {
       ...newsData,
       createdAt: serverTimestamp(),
-    }).catch(serverError => {
-       const permissionError = new FirestorePermissionError({
-        path: newsCollectionRef.path,
-        operation: 'create',
-        requestResourceData: newsData,
-       });
-       errorEmitter.emit('permission-error', permissionError);
-       throw permissionError; // Re-throw to inform the caller
     });
     revalidatePath("/admin/dashboard");
     revalidatePath("/");
     return { success: true };
   } catch (error: any) {
-    if (error instanceof FirestorePermissionError) {
-        return { error: "Permisos insuficientes para crear la noticia." };
+    // This is a server action, we can't rely on the client-side emitter.
+    // We will return a specific error message.
+    if (error.code === 'permission-denied') {
+        return { error: "Permisos insuficientes para crear la noticia. Revisa las reglas de Firestore." };
     }
     return { error: "No se pudo crear la noticia." };
   }
@@ -86,10 +80,12 @@ export async function updateNewsItem(id: string, data: Partial<Omit<NewsItem, 'i
 
   // If the URL is being updated for an image, convert it to a data URI if it's an http url
   if (updateData.url && (data.type === 'image' || !data.type)) {
+    
     const docSnap = await getDoc(newsRef).catch(serverError => {
-        const permissionError = new FirestorePermissionError({ path: newsRef.path, operation: 'get' });
-        errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
+        if (serverError.code === 'permission-denied') {
+            throw new Error("Permisos insuficientes para leer la noticia antes de actualizar.");
+        }
+        throw serverError;
     });
 
     if(!docSnap.exists()){
@@ -111,21 +107,13 @@ export async function updateNewsItem(id: string, data: Partial<Omit<NewsItem, 'i
   }
 
   try {
-    await updateDoc(newsRef, updateData).catch(serverError => {
-        const permissionError = new FirestorePermissionError({
-            path: newsRef.path,
-            operation: 'update',
-            requestResourceData: updateData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
-    });
+    await updateDoc(newsRef, updateData);
     revalidatePath("/admin/dashboard");
     revalidatePath("/");
     return { success: true };
   } catch (error: any) {
-     if (error instanceof FirestorePermissionError) {
-        return { error: "Permisos insuficientes para actualizar la noticia." };
+     if (error.code === 'permission-denied') {
+        return { error: "Permisos insuficientes para actualizar la noticia. Revisa las reglas de Firestore." };
     }
     return { error: "No se pudo actualizar la noticia." };
   }
@@ -134,17 +122,13 @@ export async function updateNewsItem(id: string, data: Partial<Omit<NewsItem, 'i
 export async function deleteNewsItem(id: string) {
   const newsRef = doc(db, "news", id);
   try {
-    await deleteDoc(newsRef).catch(serverError => {
-        const permissionError = new FirestorePermissionError({ path: newsRef.path, operation: 'delete' });
-        errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
-    });
+    await deleteDoc(newsRef);
     revalidatePath("/admin/dashboard");
     revalidatePath("/");
     return { success: true };
   } catch (error: any) {
-    if (error instanceof FirestorePermissionError) {
-        return { error: "Permisos insuficientes para eliminar la noticia." };
+    if (error.code === 'permission-denied') {
+        return { error: "Permisos insuficientes para eliminar la noticia. Revisa las reglas de Firestore." };
     }
     return { error: "No se pudo eliminar la noticia." };
   }
@@ -165,21 +149,13 @@ export async function addTickerMessage(data: unknown) {
     await addDoc(tickerCollectionRef, {
       ...validatedFields.data,
       createdAt: serverTimestamp(),
-    }).catch(serverError => {
-       const permissionError = new FirestorePermissionError({
-        path: tickerCollectionRef.path,
-        operation: 'create',
-        requestResourceData: validatedFields.data,
-       });
-       errorEmitter.emit('permission-error', permissionError);
-       throw permissionError;
     });
     revalidatePath("/admin/dashboard");
     revalidatePath("/");
     return { success: true };
   } catch (error: any) {
-     if (error instanceof FirestorePermissionError) {
-        return { error: "Permisos insuficientes para crear el mensaje." };
+     if (error.code === 'permission-denied') {
+        return { error: "Permisos insuficientes para crear el mensaje. Revisa las reglas de Firestore." };
     }
     return { error: "No se pudo crear el mensaje del ticker." };
   }
@@ -193,21 +169,13 @@ export async function updateTickerMessage(id: string, data: Partial<Omit<TickerM
   
   const tickerRef = doc(db, "tickerMessages", id);
   try {
-    await updateDoc(tickerRef, validatedFields.data).catch(serverError => {
-        const permissionError = new FirestorePermissionError({
-            path: tickerRef.path,
-            operation: 'update',
-            requestResourceData: validatedFields.data,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
-    });
+    await updateDoc(tickerRef, validatedFields.data);
     revalidatePath("/admin/dashboard");
     revalidatePath("/");
     return { success: true };
   } catch (error: any) {
-    if (error instanceof FirestorePermissionError) {
-        return { error: "Permisos insuficientes para actualizar el mensaje." };
+    if (error.code === 'permission-denied') {
+        return { error: "Permisos insuficientes para actualizar el mensaje. Revisa las reglas de Firestore." };
     }
     return { error: "No se pudo actualizar el mensaje del ticker." };
   }
@@ -216,20 +184,13 @@ export async function updateTickerMessage(id: string, data: Partial<Omit<TickerM
 export async function deleteTickerMessage(id: string) {
   const tickerRef = doc(db, "tickerMessages", id);
   try {
-    await deleteDoc(tickerRef).catch(serverError => {
-        const permissionError = new FirestorePermissionError({
-            path: tickerRef.path,
-            operation: 'delete',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
-    });
+    await deleteDoc(tickerRef);
     revalidatePath("/admin/dashboard");
     revalidatePath("/");
     return { success: true };
   } catch (error: any) {
-    if (error instanceof FirestorePermissionError) {
-        return { error: "Permisos insuficientes para eliminar el mensaje." };
+    if (error.code === 'permission-denied') {
+        return { error: "Permisos insuficientes para eliminar el mensaje. Revisa las reglas de Firestore." };
     }
     return { error: "No se pudo eliminar el mensaje del ticker." };
   }

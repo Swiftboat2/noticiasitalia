@@ -117,7 +117,6 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
         setIsDataLoading(false);
       },
       (error) => {
-        console.error("Error fetching news:", error);
         if (error.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({
                 path: 'news',
@@ -137,7 +136,6 @@ export default function Dashboard({ initialNews, initialTickerMessages }: Dashbo
         setTickerMessages(tickerData);
       },
       (error) => {
-        console.error("Error fetching ticker messages:", error);
         if (error.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({
                 path: 'tickerMessages',

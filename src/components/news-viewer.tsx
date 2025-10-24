@@ -94,7 +94,6 @@ export default function NewsViewer() {
       localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(newsData));
       setLoading(false);
     }, (error) => {
-      console.error("Error al obtener noticias:", error);
       if (error.code === 'permission-denied') {
         const permissionError = new FirestorePermissionError({
             path: 'news',

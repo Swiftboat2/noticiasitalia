@@ -33,7 +33,6 @@ export function NewsTicker() {
       
       setItems(urgentItems);
     }, (error) => {
-        console.error("Error fetching ticker messages:", error);
         if (error.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({
                 path: 'tickerMessages',
