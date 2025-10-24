@@ -1,0 +1,93 @@
+{
+  "entities": {
+    "NewsArticle": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NewsArticle",
+      "type": "object",
+      "description": "Represents a news article in the NoticiasItalia application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the NewsArticle entity."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the news article."
+        },
+        "content": {
+          "type": "string",
+          "description": "The main content of the news article (can be text or HTML)."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of the image associated with the news article.",
+          "format": "uri"
+        },
+        "videoUrl": {
+          "type": "string",
+          "description": "URL of the video associated with the news article.",
+          "format": "uri"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp of when the news article was created.",
+          "format": "date-time"
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Indicates whether the news article is currently active and should be displayed."
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "content",
+        "createdAt",
+        "isActive"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/news_articles/{newsArticleId}",
+        "definition": {
+          "entityName": "NewsArticle",
+          "schema": {
+            "$ref": "#/backend/entities/NewsArticle"
+          },
+          "description": "Stores news article data. Includes the 'isActive' field for filtering active news. Only administrators can create, update, or delete news articles.",
+          "params": [
+            {
+              "name": "newsArticleId",
+              "description": "Unique identifier for the news article."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "role",
+          "schema": {
+            "$ref": "#/backend/entities/role"
+          },
+          "description": "Collection to store admin user IDs.  The existence of a document with a user ID in this collection grants admin privileges.  No data is stored in the document itself; its mere existence confers the role.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The user ID of the administrator."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "Given the application requirements for NoticiasItalia, the proposed Firestore structure prioritizes security, real-time updates, and efficient data retrieval for news articles. The key principle is to segregate data based on access control and denormalize authorization data to avoid `get()` calls in security rules, thus ensuring authorization independence and atomic operations. The structure is designed to be simple to secure, debug, and maintain.\n\n*   `/news_articles/{newsArticleId}`: This collection stores the main news article data.  All documents share the same security requirements (only admins can create/update/delete), fulfilling Structural Segregation. The `isActive` field enables efficient filtering of active news for display, fulfilling the QAP requirement for listing only active articles.\n\n*   `/roles_admin/{userId}`:  This collection implements a database-authenticated role-based access control (DBAC) mechanism for administrators. The presence of a document with the user's ID in this collection grants admin privileges. Existence over content (of the document) is preferred for simplicity and security, simplifying the security rules. It supports QAPs because listing is not allowed, and the existence check is efficient.\n\nAuthorization Independence:\n\nThe `news_articles` collection's security doesn't depend on data outside of the document itself. The admin role is checked via `/roles_admin/{userId}`, avoiding any `get()` calls to other documents to determine admin status. This independence ensures that transactions and batches involving news articles remain atomic and prevents cascading failures if related documents are modified concurrently.\n\nQAPs:\n\n*   Listing Active News: The `isActive` field directly supports filtering news articles for real-time display. Security rules on the `news_articles` collection ensure that only authenticated administrators can modify this field, preventing unauthorized activation of news items.\n*   Admin Role Verification: The `/roles_admin/{userId}` collection allows secure and efficient verification of admin privileges without requiring complex queries or data joins."
+  }
+}
