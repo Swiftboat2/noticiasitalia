@@ -2,8 +2,9 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Regla temporal para desarrollo: permite leer y escribir en toda la base de datos.
-    // Esto es inseguro para producción y debería ser reemplazado por reglas más específicas.
+    // Esta regla permite a cualquiera leer y escribir en tu base de datos.
+    // Es útil para empezar, pero es insegura para producción.
+    // Asegúrate de configurar reglas más seguras antes de lanzar tu aplicación.
     match /{document=**} {
       allow read, write: if true;
     }
