@@ -2,32 +2,10 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Función para verificar si el usuario es un administrador.
-    // Para que esto funcione, necesitarías implementar Firebase Authentication
-    // y asignar un "custom claim" de administrador a tu usuario.
-    // Por ejemplo: request.auth.token.admin == true
-    function isAdmin() {
-      // De momento, nadie es administrador para proteger los datos.
-      return false; 
-    }
-
-    // Reglas para la colección de noticias
-    match /news/{newsId} {
-      // Cualquiera puede leer las noticias.
-      allow read: if true;
-      
-      // Solo los administradores pueden escribir (crear, actualizar, eliminar).
-      allow write: if isAdmin();
-    }
-
-    // Reglas para la colección de mensajes del ticker
-    match /tickerMessages/{messageId} {
-      // Cualquiera puede leer los mensajes.
-      allow read: if true;
-      
-      // Solo los administradores pueden escribir.
-      allow write: if isAdmin();
+    // Reglas permisivas para desarrollo.
+    // Permite leer y escribir en toda la base de datos.
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }
