@@ -14,98 +14,75 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import type { NewsItem } from "@/types";
+import type { NewsArticle } from "@/types";
 import { useEffect } from "react";
 import { collection, doc, serverTimestamp } from "firebase/firestore";
 import { useFirestore, addDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase";
-import { fetchImageAsDataUrl } from "@/lib/actions";
 
 
 interface NewsFormProps {
-  newsItem?: NewsItem | null;
+  newsArticle?: NewsArticle | null;
   onFinished: () => void;
 }
 
 const formSchema = z.object({
-  url: z.string().min(1, { message: "La URL no puede estar vacía." }),
-  type: z.enum(["image", "video", "text"], { required_error: "Por favor, selecciona un tipo." }),
-  duration: z.coerce.number().min(1, { message: "La duración debe ser de al menos 1 segundo." }),
-  active: z.boolean().default(true),
+  title: z.string().min(1, { message: "El título no puede estar vacío." }),
+  content: z.string().min(1, { message: "El contenido no puede estar vacío." }),
+  imageUrl: z.string().url({ message: "Por favor, introduce una URL de imagen válida." }).optional().or(z.literal('')),
+  videoUrl: z.string().url({ message: "Por favor, introduce una URL de vídeo válida." }).optional().or(z.literal('')),
+  isActive: z.boolean().default(true),
 });
 
-export function NewsForm({ newsItem, onFinished }: NewsFormProps) {
+export function NewsForm({ newsArticle, onFinished }: NewsFormProps) {
   const { toast } = useToast();
   const firestore = useFirestore();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      url: newsItem?.url ?? "",
-      type: newsItem?.type ?? "image",
-      duration: newsItem?.duration ?? 10,
-      active: newsItem?.active ?? true,
+      title: newsArticle?.title ?? "",
+      content: newsArticle?.content ?? "",
+      imageUrl: newsArticle?.imageUrl ?? "",
+      videoUrl: newsArticle?.videoUrl ?? "",
+      isActive: newsArticle?.isActive ?? true,
     },
   });
   
    useEffect(() => {
     // When editing, repopulate the form
-    if (newsItem) {
+    if (newsArticle) {
       form.reset({
-        url: newsItem.url,
-        type: newsItem.type,
-        duration: newsItem.duration,
-        active: newsItem.active,
+        title: newsArticle.title,
+        content: newsArticle.content,
+        imageUrl: newsArticle.imageUrl,
+        videoUrl: newsArticle.videoUrl,
+        isActive: newsArticle.isActive,
       });
     } else {
       form.reset({
-        url: "",
-        type: "image",
-        duration: 10,
-        active: true,
+        title: "",
+        content: "",
+        imageUrl: "",
+        videoUrl: "",
+        isActive: true,
       });
     }
-  }, [newsItem, form]);
+  }, [newsArticle, form]);
 
   const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
-    let finalValues = { ...values };
+    const finalValues = { ...values };
 
-    const isHttpUrl = (string: string): boolean => {
-      try {
-        const url = new URL(string);
-        return url.protocol === "http:" || url.protocol === "https:";
-      } catch (_) {
-        return false;
-      }
-    };
-    
-    // If the item is an image and the URL is external, convert it to a data URI
-    if (finalValues.type === 'image' && isHttpUrl(finalValues.url)) {
-        const imageResult = await fetchImageAsDataUrl(finalValues.url);
-        if (imageResult.success && imageResult.dataUrl) {
-            finalValues.url = imageResult.dataUrl;
-        } else {
-            toast({ variant: "destructive", title: "Error", description: `No se pudo procesar la URL de la imagen: ${imageResult.error}` });
-            return;
-        }
-    }
-
-    if (newsItem) {
+    if (newsArticle) {
       // Update existing item
-      const newsRef = doc(firestore, "news", newsItem.id);
+      const newsRef = doc(firestore, "news_articles", newsArticle.id);
       updateDocumentNonBlocking(newsRef, finalValues);
       toast({ title: "Éxito", description: `Noticia actualizada.` });
     } else {
       // Add new item
-      const newsCollectionRef = collection(firestore, "news");
+      const newsCollectionRef = collection(firestore, "news_articles");
       addDocumentNonBlocking(newsCollectionRef, {
         ...finalValues,
         createdAt: serverTimestamp(),
@@ -120,10 +97,36 @@ export function NewsForm({ newsItem, onFinished }: NewsFormProps) {
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
         <FormField
           control={form.control}
-          name="url"
+          name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>URL</FormLabel>
+              <FormLabel>Título</FormLabel>
+              <FormControl>
+                <Input placeholder="El titular de la noticia" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="content"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Contenido</FormLabel>
+              <FormControl>
+                <Textarea placeholder="El cuerpo de la noticia..." {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="imageUrl"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>URL de Imagen (Opcional)</FormLabel>
               <FormControl>
                 <Input placeholder="https://example.com/image.jpg" {...field} />
               </FormControl>
@@ -133,35 +136,12 @@ export function NewsForm({ newsItem, onFinished }: NewsFormProps) {
         />
         <FormField
           control={form.control}
-          name="type"
+          name="videoUrl"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Tipo</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un tipo de contenido" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="image">Imagen</SelectItem>
-                  <SelectItem value="video">Video</SelectItem>
-                  <SelectItem value="text">Texto/Sitio Web</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="duration"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Duración (segundos)</FormLabel>
+              <FormLabel>URL de Video de YouTube (Opcional)</FormLabel>
               <FormControl>
-                <Input type="number" {...field} />
+                <Input placeholder="https://youtube.com/watch?v=..." {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -169,7 +149,7 @@ export function NewsForm({ newsItem, onFinished }: NewsFormProps) {
         />
         <FormField
           control={form.control}
-          name="active"
+          name="isActive"
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background">
               <div className="space-y-0.5">

@@ -2,10 +2,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
 import Image from 'next/image';
 import { db } from '@/lib/firebase/config';
-import type { NewsItem } from '@/types';
+import type { NewsArticle } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { Skeleton } from './ui/skeleton';
@@ -54,12 +54,13 @@ const getYouTubeEmbedUrl = (url: string) => {
         return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
     }
     
-    return url; 
+    // For non-YouTube URLs, return null or the original URL if you want to handle it differently
+    return null; 
 };
 
 export default function NewsViewer() {
   const [api, setApi] = useState<CarouselApi>();
-  const [news, setNews] = useState<NewsItem[]>([]);
+  const [news, setNews] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -86,17 +87,16 @@ export default function NewsViewer() {
       return;
     }
 
-    const newsQuery = query(collection(db, "news"), orderBy("createdAt", "desc"));
+    const newsQuery = query(collection(db, "news_articles"), where("isActive", "==", true), orderBy("createdAt", "desc"));
     const newsUnsubscribe = onSnapshot(newsQuery, (snapshot) => {
-      const newsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as NewsItem)
-                                    .filter(item => item.active);
+      const newsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as NewsArticle);
       setNews(newsData);
       localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(newsData));
       setLoading(false);
     }, (error) => {
       if (error.code === 'permission-denied') {
         const permissionError = new FirestorePermissionError({
-            path: 'news',
+            path: 'news_articles',
             operation: 'list'
         });
         errorEmitter.emit('permission-error', permissionError);
@@ -128,11 +128,8 @@ export default function NewsViewer() {
     
     if (!currentItem) return;
     
-    let duration = (currentItem.duration && currentItem.duration > 0) ? currentItem.duration : 10;
-    
-    if (currentItem.type === 'video') {
-       // We let the video play. The timer is just a fallback.
-    }
+    // Placeholder for duration - you might want to add this to your NewsArticle model
+    const duration = 10; // Default 10 seconds
 
     timerRef.current = setTimeout(() => {
       api.scrollNext();
@@ -172,20 +169,27 @@ export default function NewsViewer() {
     };
   }, [api, news, startTimer, clearTimer]);
   
-  const renderContent = (item: NewsItem, index: number) => {
+  const renderContent = (item: NewsArticle, index: number) => {
     const isActive = index === currentSlide;
 
-    switch (item.type) {
-      case 'image':
-        return <Image src={item.url} alt="Contenido de la noticia" fill sizes="100vw" className="object-cover" priority quality={100}/>;
-      case 'video':
-        // Only render the iframe if the slide is active to prevent background playback and sound issues
-        return isActive ? <iframe src={getYouTubeEmbedUrl(item.url)} title="Video de la noticia" className="w-full h-full" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen sandbox="allow-scripts allow-same-origin allow-forms"></iframe> : null;
-      case 'text':
-         return <iframe src={item.url} title="Contenido de la noticia" className="w-full h-full bg-white" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>;
-      default:
-        return <p className="text-white">Tipo de contenido no soportado</p>;
+    if (item.imageUrl) {
+        return <Image src={item.imageUrl} alt={item.title} fill sizes="100vw" className="object-cover" priority quality={100}/>;
     }
+
+    if (item.videoUrl) {
+        const embedUrl = getYouTubeEmbedUrl(item.videoUrl);
+        return isActive && embedUrl ? <iframe src={embedUrl} title={item.title} className="w-full h-full" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen sandbox="allow-scripts allow-same-origin allow-forms"></iframe> : null;
+    }
+
+    // Fallback for text content or other types
+    return (
+        <div className="w-full h-full bg-gray-800 flex items-center justify-center p-8">
+            <div className="text-center text-white">
+                <h2 className="text-3xl font-bold mb-4">{item.title}</h2>
+                <p className="text-lg">{item.content}</p>
+            </div>
+        </div>
+    );
   };
 
   return (

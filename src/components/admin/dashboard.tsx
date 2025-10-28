@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   Table,
   TableBody,
@@ -33,8 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { NewsForm } from "./news-form";
-import { TickerForm } from "./ticker-form";
-import type { NewsItem, TickerMessage } from "@/types";
+import type { NewsArticle } from "@/types";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -44,8 +43,6 @@ import {
   LogOut,
   Newspaper,
   Eye,
-  MessageSquare,
-  AlertTriangle,
   Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -65,11 +62,7 @@ import { signOut } from "firebase/auth";
 
 export default function Dashboard() {
   const [isNewsFormOpen, setIsNewsFormOpen] = useState(false);
-  const [isTickerFormOpen, setIsTickerFormOpen] = useState(false);
-  
-  const [editingNews, setEditingNews] = useState<NewsItem | null>(null);
-  const [editingTicker, setEditingTicker] = useState<TickerMessage | null>(null);
-  
+  const [editingNews, setEditingNews] = useState<NewsArticle | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const { toast } = useToast();
@@ -77,46 +70,29 @@ export default function Dashboard() {
   const auth = useAuth();
   const firestore = useFirestore();
   
-  const { data: news, isLoading: isNewsLoading } = useCollection<NewsItem>(
-    query(collection(firestore, "news"), orderBy("createdAt", "desc"))
+  const { data: news, isLoading: isNewsLoading } = useCollection<NewsArticle>(
+    query(collection(firestore, "news_articles"), orderBy("createdAt", "desc"))
   );
 
-  const { data: tickerMessages, isLoading: isTickerLoading } = useCollection<TickerMessage>(
-    query(collection(firestore, "tickerMessages"), orderBy("createdAt", "desc"))
-  );
+  const isDataLoading = isNewsLoading;
 
-  const isDataLoading = isNewsLoading || isTickerLoading;
-
-  const handleEditNews = useCallback((item: NewsItem) => {
+  const handleEditNews = useCallback((item: NewsArticle) => {
     setEditingNews(item);
     setIsNewsFormOpen(true);
   }, []);
 
   const handleDeleteNews = useCallback(async (id: string) => {
     setIsLoading(true);
-    const newsRef = doc(firestore, "news", id);
+    const newsRef = doc(firestore, "news_articles", id);
     deleteDocumentNonBlocking(newsRef);
     toast({ title: "Éxito", description: "Noticia eliminada." });
     setIsLoading(false);
   }, [firestore, toast]);
-  
-  const handleEditTicker = useCallback((item: TickerMessage) => {
-    setEditingTicker(item);
-    setIsTickerFormOpen(true);
-  }, []);
 
-  const handleDeleteTicker = useCallback(async (id: string) => {
+  const handleToggleActive = useCallback(async (item: NewsArticle) => {
     setIsLoading(true);
-    const tickerRef = doc(firestore, "tickerMessages", id);
-    deleteDocumentNonBlocking(tickerRef);
-    toast({ title: "Éxito", description: "Mensaje del ticker eliminado." });
-    setIsLoading(false);
-  }, [firestore, toast]);
-
-  const handleToggleActive = useCallback(async (item: NewsItem) => {
-    setIsLoading(true);
-    const newsRef = doc(firestore, "news", item.id);
-    updateDocumentNonBlocking(newsRef, { active: !item.active });
+    const newsRef = doc(firestore, "news_articles", item.id);
+    updateDocumentNonBlocking(newsRef, { isActive: !item.isActive });
     setIsLoading(false);
   }, [firestore]);
 
@@ -138,20 +114,6 @@ export default function Dashboard() {
       console.error('Error al formatear fecha:', dateString, e);
       return 'Fecha inválida';
     }
-  }, []);
-
-  const renderDuration = useCallback((duration: number | undefined) => {
-    const validDuration = duration && !isNaN(duration) && duration > 0 ? duration : 10;
-    const isDefault = !duration || isNaN(duration) || duration <= 0;
-    
-    return (
-      <div className="flex items-center gap-1">
-        <span className={isDefault ? 'text-orange-600' : ''}>{validDuration}s</span>
-        {isDefault && (
-          <AlertTriangle className="h-3 w-3 text-orange-600" title="Usando duración por defecto" />
-        )}
-      </div>
-    );
   }, []);
 
   return (
@@ -202,7 +164,7 @@ export default function Dashboard() {
               </DialogHeader>
               <ScrollArea className="max-h-[70vh] pr-6">
                 <NewsForm
-                  newsItem={editingNews}
+                  newsArticle={editingNews}
                   onFinished={() => { 
                     setIsNewsFormOpen(false); 
                     setEditingNews(null); 
@@ -217,10 +179,9 @@ export default function Dashboard() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>URL</TableHead>
-                <TableHead>Tipo</TableHead>
+                <TableHead>Título</TableHead>
+                <TableHead>Contenido</TableHead>
                 <TableHead>Creación</TableHead>
-                <TableHead>Duración</TableHead>
                 <TableHead>Activa</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
@@ -228,7 +189,7 @@ export default function Dashboard() {
             <TableBody>
               {isDataLoading ? (
                  <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     <div className="flex justify-center items-center">
                       <Loader2 className="mr-2 h-6 w-6 animate-spin" />
                       <span>Cargando noticias...</span>
@@ -238,30 +199,12 @@ export default function Dashboard() {
               ) : news && news.length > 0 ? (
                 news.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium max-w-xs truncate">
-                      <a 
-                        href={item.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="hover:underline text-primary"
-                      >
-                        {item.url}
-                      </a>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={
-                        item.type === 'image' ? 'default' : 
-                        item.type === 'video' ? 'secondary' : 
-                        'outline'
-                      }>
-                        {item.type}
-                      </Badge>
-                    </TableCell>
+                    <TableCell className="font-medium max-w-xs truncate">{item.title}</TableCell>
+                    <TableCell className="max-w-xs truncate">{item.content}</TableCell>
                     <TableCell>{formatDate(item.createdAt)}</TableCell>
-                    <TableCell>{renderDuration(item.duration)}</TableCell>
                     <TableCell>
                       <Switch 
-                        checked={item.active} 
+                        checked={item.isActive} 
                         onCheckedChange={() => handleToggleActive(item)}
                         disabled={isLoading}
                       />
@@ -301,117 +244,8 @@ export default function Dashboard() {
                 ))
               ) : (
                 <TableRow>
-                    <TableCell colSpan={6} className="text-center p-10 text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center p-10 text-muted-foreground">
                     No se encontraron noticias.
-                    </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </section>
-
-      {/* Ticker Section */}
-      <section>
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-headline flex items-center gap-2">
-            <MessageSquare className="h-6 w-6"/>
-            Gestor del Ticker de Noticias Urgentes
-            {!isDataLoading && tickerMessages && tickerMessages.length > 0 && (
-              <Badge variant="secondary" className="ml-2">{tickerMessages.length}</Badge>
-            )}
-          </h2>
-          <Dialog
-            open={isTickerFormOpen}
-            onOpenChange={(isOpen) => {
-              setIsTickerFormOpen(isOpen);
-              if (!isOpen) setEditingTicker(null);
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button variant="secondary" disabled={isLoading}>
-                <PlusCircle className="mr-2 h-4 w-4" /> Añadir Mensaje Urgente
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>{editingTicker ? "Editar Mensaje" : "Añadir Mensaje Urgente"}</DialogTitle>
-                <DialogDescription>
-                  {editingTicker ? "Actualiza el texto del mensaje." : "Añade un nuevo mensaje a la cinta de noticias urgentes."}
-                </DialogDescription>
-              </DialogHeader>
-              <TickerForm
-                tickerMessage={editingTicker}
-                onFinished={() => { 
-                  setIsTickerFormOpen(false); 
-                  setEditingTicker(null); 
-                }}
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
-        
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Texto del Mensaje</TableHead>
-                <TableHead>Creación</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-             {isDataLoading ? (
-                 <TableRow>
-                    <TableCell colSpan={3} className="h-24 text-center">
-                        <div className="flex justify-center items-center">
-                           <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                           <span>Cargando mensajes...</span>
-                        </div>
-                    </TableCell>
-                </TableRow>
-              ) : tickerMessages && tickerMessages.length > 0 ? (
-                tickerMessages.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.text}</TableCell>
-                    <TableCell>{formatDate(item.createdAt)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleEditTicker(item)}
-                        disabled={isLoading}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" disabled={isLoading}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Esta acción eliminará permanentemente el mensaje del ticker.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteTicker(item.id)}>
-                              Eliminar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                    <TableCell colSpan={3} className="text-center p-10 text-muted-foreground">
-                        No se encontraron mensajes en el ticker.
                     </TableCell>
                 </TableRow>
               )}
