@@ -180,7 +180,7 @@ export default function NewsViewer() {
   };
 
   return (
-   <div className="flex justify-center items-center h-full w-full bg-black">
+    <div className="flex justify-center items-center h-full w-full bg-black">
       <div className="relative w-full h-full">
         {loading ? (
            <Skeleton className="w-full h-full bg-gray-800" />
