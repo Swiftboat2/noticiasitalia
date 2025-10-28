@@ -1,50 +1,63 @@
 /**
- * @fileoverview Firestore Security Rules for the NoticiasItalia application.
+ * @fileOverview Security rules for the NoticiasItalia application.
  *
  * Core Philosophy:
- * This ruleset enforces a role-based access control model, where administrator privileges are determined by the existence of a document in the `/roles_admin` collection. News articles are managed exclusively by administrators.
+ * This ruleset enforces strict role-based access control, primarily using an "admin" role.
+ * The ruleset is designed with simplicity and security in mind, avoiding complex lookups and
+ * prioritizing clear, easily maintainable logic.
  *
  * Data Structure:
- * - `/news_articles/{newsArticleId}`: Stores news article data. Only administrators can create, update, or delete documents in this collection.
- * - `/roles_admin/{userId}`:  The presence of a document with a user ID in this collection grants admin privileges.
+ * - `/news_articles/{newsArticleId}`: Stores news article data.
+ * - `/roles_admin/{userId}`: Stores admin user IDs. The existence of a document here
+ *   grants admin privileges.
  *
  * Key Security Decisions:
- * - News article management is restricted to administrators only.
- * - The existence of a document in `/roles_admin/{userId}` is sufficient to grant admin privileges to the corresponding user. The document content is ignored.
- * - No listing of admin roles is allowed.
+ * - Only authenticated administrators can create, update, or delete news articles.
+ * - Listing of the `/roles_admin` collection is disallowed to prevent unauthorized discovery
+ *   of administrator accounts.
+ * - The presence of a document in `/roles_admin/{userId}` grants admin privileges, with no
+ *   data being stored or validated within the document itself.
+ * - Data validation is relaxed to allow for rapid prototyping and iteration. Focus is placed
+ *   on authorization and relational integrity.
  *
  * Denormalization for Authorization:
- * - The admin role is determined by the existence of a document in `/roles_admin/{userId}`. This avoids the need for complex queries to determine admin status.
+ * - Admin status is checked directly via the existence of a document in `/roles_admin/{userId}`,
+ *   avoiding costly `get()` calls in the `news_articles` rules.
+ *
+ * Structural Segregation:
+ * - The `/news_articles` collection separates concerns by storing all news articles in a single collection,
+ *   simplifying security rules and fulfilling the requirement that all articles share the same security constraints.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the current user is an administrator.
-     * @return {bool} True if the user is an admin, false otherwise.
-     */
-    function isAdmin() {
-      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
-    }
-
-    /**
-     * @description Checks if a user is signed in.
-     * @return {bool} True if the user is signed in, false otherwise.
+     * @description Checks if the user is signed in.
+     * @returns {boolean} True if the user is signed in, false otherwise.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Rule for the /news_articles/{newsArticleId} collection.
+     * @description Checks if the user is an admin by verifying the existence of a document in the `/roles_admin/{userId}` collection.
+     * @returns {boolean} True if the user is an admin, false otherwise.
+     */
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    /**
+     * @description Rules for the news_articles collection. Only admins can create, update, or delete news articles.
      * @path /news_articles/{newsArticleId}
-     * @allow (create) - An admin can create a new news article.
-     * @deny (create) - A non-admin cannot create a new news article.
-     * @allow (get, list) - Anyone can read news articles.
-     * @allow (update, delete) - An admin can update or delete a news article.
-     * @deny (update, delete) - A non-admin cannot update or delete a news article.
-     * @principle Enforces admin-only access for creating, updating, and deleting news articles.
+     * @allow (create) - An admin user can create a news article.
+     * @deny (create) - A non-admin user cannot create a news article.
+     * @allow (update) - An admin user can update a news article.
+     * @deny (update) - A non-admin user cannot update a news article.
+     * @allow (delete) - An admin user can delete a news article.
+     * @deny (delete) - A non-admin user cannot delete a news article.
+     * @principle Enforces role-based access control, allowing only admins to modify news articles.
      */
     match /news_articles/{newsArticleId} {
       allow get, list: if true;
@@ -54,21 +67,20 @@ service cloud.firestore {
     }
 
     /**
-     * @description Rule for the /roles_admin/{userId} collection.
+     * @description Rules for the roles_admin collection. Only admins can create roles. Listing is denied to prevent unauthorized discovery of admin accounts.
      * @path /roles_admin/{userId}
-     * @allow (create) - A user can create their own admin role document if their UID matches the document ID. This should be done via a privileged backend process.
-     * @deny (create) - A user cannot create an admin role document for another user.
-     * @allow (get) - Anyone can check for the existence of an admin role document.
-     * @deny (list) - No one can list the admin roles.
-     * @allow (update, delete) - Only an admin can update or delete an admin role document.
-     * @principle Enforces strict control over admin role assignment, limiting creation to backend processes and update/delete to existing admins.
+     * @allow (create) - An admin user can create a role.
+     * @deny (create) - A non-admin user cannot create a role.
+     * @allow (get) - Any authenticated user can check for admin privileges.
+     * @deny (get) - An unauthenticated user cannot check for admin privileges.
+     * @principle Implements role-based access control using the existence of documents.
      */
     match /roles_admin/{userId} {
-      allow get: if true;
+      allow get: if isSignedIn();
       allow list: if false;
-      allow create: if request.auth.uid == userId;
-      allow update: if isSignedIn() && isAdmin() && resource != null;
-      allow delete: if isSignedIn() && isAdmin() && resource != null;
+      allow create: if isSignedIn() && isAdmin();
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }
