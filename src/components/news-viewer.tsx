@@ -1,15 +1,13 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
 import Image from 'next/image';
-import { db } from '@/lib/firebase/config';
 import type { NewsArticle } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { Skeleton } from './ui/skeleton';
-import { NewsTicker } from './news-ticker';
+import { useFirestore } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -65,6 +63,7 @@ export default function NewsViewer() {
   const [isOffline, setIsOffline] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const firestore = useFirestore();
 
   useEffect(() => {
     if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
@@ -86,10 +85,17 @@ export default function NewsViewer() {
       setLoading(false);
       return;
     }
+    
+    if (!firestore) return;
 
-    const newsQuery = query(collection(db, "news_articles"), where("isActive", "==", true), orderBy("createdAt", "desc"));
+    const newsQuery = query(collection(firestore, "news_articles"), where("isActive", "==", true), orderBy("createdAt", "desc"));
     const newsUnsubscribe = onSnapshot(newsQuery, (snapshot) => {
-      const newsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as NewsArticle);
+      const newsData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          // Ensure createdAt is serialized
+          const createdAt = data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt;
+          return { id: doc.id, ...data, createdAt } as NewsArticle;
+      });
       setNews(newsData);
       localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(newsData));
       setLoading(false);
@@ -109,7 +115,7 @@ export default function NewsViewer() {
     return () => {
       newsUnsubscribe();
     };
-  }, [isOffline]);
+  }, [isOffline, firestore]);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -216,7 +222,7 @@ export default function NewsViewer() {
             </CarouselContent>
           </Carousel>
         )}
-        <NewsTicker />
+        {/* NewsTicker is removed, so we don't render it */}
       </div>
     </div>
   );

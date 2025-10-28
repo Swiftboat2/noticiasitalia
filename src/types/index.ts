@@ -7,7 +7,7 @@ export type NewsArticle = {
   content: string;
   imageUrl?: string;
   videoUrl?: string;
-  createdAt: string; // Serialized from Timestamp
+  createdAt: Timestamp | string; // Can be a Timestamp from server or string after serialization
   isActive: boolean;
 };
 
