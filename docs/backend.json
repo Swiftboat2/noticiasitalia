@@ -45,6 +45,20 @@
         "createdAt",
         "isActive"
       ]
+    },
+    "role": {
+      "title": "Role",
+      "description": "Defines user roles and permissions within the application.",
+      "type": "object",
+      "properties": {
+        "admin": {
+          "type": "boolean",
+          "description": "Flag indicating if the user has administrative privileges."
+        }
+      },
+      "required": [
+        "admin"
+      ]
     }
   },
   "auth": {
