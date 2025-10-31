@@ -200,7 +200,7 @@ export default function NewsViewer() {
 
   return (
     <div className="flex justify-center items-center h-full w-full bg-black">
-      <div className="relative w-full h-full">
+      <div className="relative w-full h-full aspect-video max-w-full max-h-full">
         {loading ? (
            <Skeleton className="w-full h-full bg-gray-800" />
         ) : news.length === 0 ? (

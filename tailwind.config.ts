@@ -101,6 +101,8 @@ export default {
         'accordion-up': 'accordion-up 0.2s ease-out',
       },
       aspectRatio: {
+        '16/9': '16 / 9',
+        'video': '16 / 9',
         '9/16': '9 / 16',
       }
     },
