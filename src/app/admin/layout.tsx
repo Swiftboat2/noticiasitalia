@@ -1,67 +1,65 @@
 "use client";
 
-import { useEffect, type ReactNode, useState } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useUser } from "@/firebase";
+import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { User as FirebaseUser } from 'firebase/auth';
-
-type CustomUser = FirebaseUser & {
-  isAdmin?: boolean;
-};
+import { doc } from "firebase/firestore";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
   const router = useRouter();
   const pathname = usePathname();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
+
+  // Memoize the document reference to prevent re-renders
+  const adminRoleRef = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return doc(firestore, "roles_admin", user.uid);
+  }, [user, firestore]);
+
+  // Use the useDoc hook to check for the existence of the admin role document
+  const { data: adminRole, isLoading: isAdminLoading } = useDoc(adminRoleRef);
+  
+  const isAdmin = !!adminRole;
+  const isCheckingAuth = isUserLoading || isAdminLoading;
 
   useEffect(() => {
-    if (isUserLoading) {
-      return; // Wait for user to be loaded
-    }
-
-    if (!user) {
-      // If loading is finished and there's no user, redirect to login,
-      // unless we are already on the login page.
-      if (pathname !== "/admin/login") {
-        router.push("/admin/login");
-      }
-      setIsCheckingAdmin(false);
+    // If we're still checking auth, do nothing.
+    if (isCheckingAuth) {
       return;
     }
 
-    // User is authenticated, check for admin claim
-    (user as CustomUser).getIdTokenResult()
-      .then((idTokenResult) => {
-        const isAdminClaim = !!idTokenResult.claims.admin;
-        setIsAdmin(isAdminClaim);
-        
-        if (!isAdminClaim && pathname !== '/admin/login') {
-            // If the user is not an admin and not trying to log in,
-            // redirect them away. For now, we'll send them to the home page.
-            router.push('/');
-        }
-      })
-      .catch(() => {
-        setIsAdmin(false);
-        if (pathname !== '/admin/login') {
-          router.push('/');
-        }
-      })
-      .finally(() => {
-        setIsCheckingAdmin(false);
-      });
+    // If auth check is done and there's no user, redirect to login
+    // unless they are already trying to log in.
+    if (!user) {
+      if (pathname !== "/admin/login") {
+        router.push("/admin/login");
+      }
+      return;
+    }
 
-  }, [user, isUserLoading, router, pathname]);
+    // If the user is logged in but is NOT an admin, and is trying to access
+    // something other than the login page, redirect them away.
+    if (user && !isAdmin && pathname !== "/admin/login") {
+      router.push("/");
+    }
+  }, [user, isAdmin, isCheckingAuth, pathname, router]);
 
-  // Determine loading state
-  const isLoading = isUserLoading || isCheckingAdmin;
-  
-  // Show skeleton while loading auth state or admin status.
-  // Also show skeleton if we are about to redirect.
-  if (isLoading || (!user && pathname !== "/admin/login")) {
+
+  // If auth state is loading, or we are about to redirect, show skeleton.
+  if (isCheckingAuth || (!user && pathname !== "/admin/login")) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Skeleton className="h-full w-full" />
+      </div>
+    );
+  }
+
+  // If the user IS an admin and is on the login page, redirect to the dashboard.
+  if (user && isAdmin && pathname === "/admin/login") {
+    router.push("/admin/dashboard");
+    // Show a skeleton while redirecting
     return (
       <div className="flex h-screen items-center justify-center">
         <Skeleton className="h-full w-full" />
@@ -69,19 +67,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
   
-  // If we are on the login page and the user IS authenticated as an admin, redirect to dashboard
-  if (user && isAdmin && pathname === "/admin/login") {
-    router.push("/admin/dashboard");
-    return (
-       <div className="flex h-screen items-center justify-center">
-        <Skeleton className="h-full w-full" />
-      </div>
-    );
-  }
-
-  // If the user is authenticated but not an admin, and not on the login page, don't show admin content
+    // If the user is authenticated but not an admin, and not on the login page, don't show admin content
   if (user && !isAdmin && pathname !== '/admin/login') {
-    // Already redirecting, show skeleton
+    // Already redirecting, show a message while redirecting.
     return (
       <div className="flex h-screen items-center justify-center">
         <p>No tienes permiso para acceder a esta página.</p>
@@ -89,5 +77,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
+
+  // If all checks pass, render the children (the requested admin page).
   return <>{children}</>;
 }
