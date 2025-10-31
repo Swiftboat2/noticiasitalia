@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
 import Image from 'next/image';
 import type { NewsArticle } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { Skeleton } from './ui/skeleton';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useCollection } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -59,11 +59,17 @@ const getYouTubeEmbedUrl = (url: string) => {
 export default function NewsViewer() {
   const [api, setApi] = useState<CarouselApi>();
   const [news, setNews] = useState<NewsArticle[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const firestore = useFirestore();
+
+  const newsQuery = useMemo(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, "news_articles"), where("isActive", "==", true), orderBy("createdAt", "desc"));
+  }, [firestore]);
+
+  const { data: onlineNews, isLoading: loading, error } = useCollection<NewsArticle>(newsQuery);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
@@ -82,40 +88,26 @@ export default function NewsViewer() {
     if (isOffline) {
       const cachedNews = localStorage.getItem(NEWS_CACHE_KEY);
       if (cachedNews) setNews(JSON.parse(cachedNews));
-      setLoading(false);
-      return;
+    } else if (onlineNews) {
+      setNews(onlineNews);
+      localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(onlineNews));
     }
-    
-    if (!firestore) return;
+  }, [isOffline, onlineNews]);
 
-    const newsQuery = query(collection(firestore, "news_articles"), where("isActive", "==", true), orderBy("createdAt", "desc"));
-    const newsUnsubscribe = onSnapshot(newsQuery, (snapshot) => {
-      const newsData = snapshot.docs.map(doc => {
-          const data = doc.data();
-          // Ensure createdAt is serialized
-          const createdAt = data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt;
-          return { id: doc.id, ...data, createdAt } as NewsArticle;
-      });
-      setNews(newsData);
-      localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(newsData));
-      setLoading(false);
-    }, (error) => {
-      if (error.code === 'permission-denied') {
-        const permissionError = new FirestorePermissionError({
-            path: 'news_articles',
-            operation: 'list'
-        });
-        errorEmitter.emit('permission-error', permissionError);
+   useEffect(() => {
+    if (error) {
+      console.error("Error fetching news:", error);
+      if (error instanceof FirestorePermissionError) {
+        errorEmitter.emit('permission-error', error);
       }
+      // Fallback to cache on error
       const cachedNews = localStorage.getItem(NEWS_CACHE_KEY);
-      if (cachedNews) setNews(JSON.parse(cachedNews));
-      setLoading(false);
-    });
+      if (cachedNews) {
+        setNews(JSON.parse(cachedNews));
+      }
+    }
+  }, [error]);
 
-    return () => {
-      newsUnsubscribe();
-    };
-  }, [isOffline, firestore]);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -201,7 +193,7 @@ export default function NewsViewer() {
   return (
     <div className="flex justify-center items-center h-full w-full bg-black">
       <div className="relative w-full h-full aspect-video max-w-full max-h-full">
-        {loading ? (
+        {loading && news.length === 0 ? (
            <Skeleton className="w-full h-full bg-gray-800" />
         ) : news.length === 0 ? (
           <div className="flex items-center justify-center h-full w-full bg-gray-900">
@@ -222,7 +214,6 @@ export default function NewsViewer() {
             </CarouselContent>
           </Carousel>
         )}
-        {/* NewsTicker is removed, so we don't render it */}
       </div>
     </div>
   );
