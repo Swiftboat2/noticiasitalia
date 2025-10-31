@@ -5,9 +5,7 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { useAuth, useUser, useFirestore } from "@/firebase";
-import { doc } from "firebase/firestore";
-import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { useAuth, useUser } from "@/firebase";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,8 +19,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogIn, UserPlus } from "lucide-react";
-import { useState, useCallback } from "react";
+import { LogIn } from "lucide-react";
+import { useState } from "react";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Por favor, introduce un correo electrónico válido." }),
@@ -31,10 +29,8 @@ const formSchema = z.object({
 
 export function LoginForm() {
   const { toast } = useToast();
-  const router = useRouter();
   const auth = useAuth();
   const { user } = useUser();
-  const firestore = useFirestore();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -72,19 +68,6 @@ export function LoginForm() {
       setIsSubmitting(false);
     }
   }
-
-  const handleMakeAdmin = useCallback(async () => {
-    if (!user) {
-      toast({ variant: "destructive", title: "Error", description: "Debes iniciar sesión primero." });
-      return;
-    }
-    const adminRef = doc(firestore, "roles_admin", user.uid);
-    setDocumentNonBlocking(adminRef, { admin: true }, {});
-    toast({ title: "Éxito", description: "Te has asignado el rol de administrador. Serás redirigido." });
-    // Give a moment for the role to propagate before the layout re-checks
-    setTimeout(() => router.push("/admin/dashboard"), 1000);
-  }, [user, firestore, toast, router]);
-
 
   return (
     <Card className="w-full max-w-sm">
@@ -133,12 +116,6 @@ export function LoginForm() {
       </CardContent>
       {user && (
         <CardFooter className="flex-col gap-4">
-            <p className="text-sm text-muted-foreground text-center">
-              Parece que has iniciado sesión pero no eres administrador.
-            </p>
-            <Button variant="secondary" className="w-full" onClick={handleMakeAdmin}>
-                <UserPlus className="mr-2"/> Hazme Administrador
-            </Button>
             <Button variant="outline" className="w-full" onClick={() => signOut(auth)}>
                 Cerrar sesión de {user.email}
             </Button>
