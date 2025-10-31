@@ -1,8 +1,8 @@
 export const firebaseConfig = {
-  "projectId": "studio-8470533760-cc0e2",
-  "appId": "1:173589929744:web:35bf8be7110eab55d60f95",
-  "apiKey": "AIzaSyBlaCGMy87AAfSXIEDOu-uHHo1imWWqdbY",
-  "authDomain": "studio-8470533760-cc0e2.firebaseapp.com",
-  "measurementId": "",
-  "messagingSenderId": "173589929744"
+  apiKey: "AIzaSyDECLBqGBl340ULSIZyvLrJNhZPqEEzO4c",
+  authDomain: "noticiacolegioitalia.firebaseapp.com",
+  projectId: "noticiacolegioitalia",
+  storageBucket: "noticiacolegioitalia.firebasestorage.app",
+  messagingSenderId: "730443750158",
+  appId: "1:730443750158:web:95d802bd623c349981555f"
 };
